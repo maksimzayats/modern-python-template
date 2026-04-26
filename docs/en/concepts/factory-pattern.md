@@ -57,7 +57,7 @@ class JWTAuthFactory(BaseFactory):
 
 ```python
 @dataclass(kw_only=True)
-class UserController(BaseTransactionController):
+class UserController(BaseAsyncController):
     _jwt_auth_factory: JWTAuthFactory
     _user_use_case: UserUseCase
 

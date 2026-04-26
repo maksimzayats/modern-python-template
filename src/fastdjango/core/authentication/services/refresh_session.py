@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import ClassVar, NamedTuple
 
+from asgiref.sync import sync_to_async
 from diwire import Injected
 from django.db import models, transaction
 from django.utils import timezone
@@ -35,7 +36,38 @@ class RefreshSessionService(BaseService):
 
     _settings: Injected[RefreshSessionServiceSettings]
 
-    def create_refresh_session(
+    async def create_refresh_session(
+        self,
+        user: User,
+        user_agent: str,
+        ip_address_trace: str | None,
+    ) -> RefreshSessionResult:
+        return await sync_to_async(
+            self._create_refresh_session_transactionally,
+            thread_sensitive=True,
+        )(
+            user=user,
+            user_agent=user_agent,
+            ip_address_trace=ip_address_trace,
+        )
+
+    async def rotate_refresh_token(self, refresh_token: str) -> RefreshSessionResult:
+        return await sync_to_async(
+            self._rotate_refresh_token_transactionally,
+            thread_sensitive=True,
+        )(refresh_token=refresh_token)
+
+    async def revoke_refresh_token(
+        self,
+        refresh_token: str,
+        user: User,
+    ) -> None:
+        await sync_to_async(
+            self._revoke_refresh_token_transactionally,
+            thread_sensitive=True,
+        )(refresh_token=refresh_token, user=user)
+
+    def _create_refresh_session_transactionally(
         self,
         user: User,
         user_agent: str,
@@ -44,46 +76,49 @@ class RefreshSessionService(BaseService):
         refresh_token = self._issue_refresh_token()
         refresh_token_hash = self._hash_refresh_token(refresh_token)
 
-        session = RefreshSession.objects.create(
-            user=user,
-            refresh_token_hash=refresh_token_hash,
-            user_agent=user_agent,
-            ip_address_trace=ip_address_trace or "",
-            expires_at=timezone.now() + self._settings.refresh_token_ttl,
-        )
+        with transaction.atomic():
+            session = RefreshSession.objects.create(
+                user=user,
+                refresh_token_hash=refresh_token_hash,
+                user_agent=user_agent,
+                ip_address_trace=ip_address_trace or "",
+                expires_at=timezone.now() + self._settings.refresh_token_ttl,
+            )
 
         return RefreshSessionResult(refresh_token=refresh_token, session=session)
 
-    @transaction.atomic
-    def rotate_refresh_token(self, refresh_token: str) -> RefreshSessionResult:
-        session = self._get_refresh_session_for_update(refresh_token)
-
+    def _rotate_refresh_token_transactionally(self, refresh_token: str) -> RefreshSessionResult:
         new_refresh_token = self._issue_refresh_token()
-        session.refresh_token_hash = self._hash_refresh_token(new_refresh_token)
-        session.rotation_counter += 1
-        session.last_used_at = timezone.now()
-        session.save(
-            update_fields=[
-                "refresh_token_hash",
-                "rotation_counter",
-                "last_used_at",
-            ],
-        )
+        new_refresh_token_hash = self._hash_refresh_token(new_refresh_token)
+
+        with transaction.atomic():
+            session = self._get_refresh_session_for_update(refresh_token)
+
+            session.refresh_token_hash = new_refresh_token_hash
+            session.rotation_counter += 1
+            session.last_used_at = timezone.now()
+            session.save(
+                update_fields=[
+                    "refresh_token_hash",
+                    "rotation_counter",
+                    "last_used_at",
+                ],
+            )
 
         return RefreshSessionResult(refresh_token=new_refresh_token, session=session)
 
-    @transaction.atomic
-    def revoke_refresh_token(
+    def _revoke_refresh_token_transactionally(
         self,
         refresh_token: str,
         user: User,
     ) -> None:
-        session = self._get_refresh_session_for_update(refresh_token)
-        if session.user.pk != user.pk:
-            raise self.INVALID_REFRESH_TOKEN_ERROR
+        with transaction.atomic():
+            session = self._get_refresh_session_for_update(refresh_token)
+            if session.user.pk != user.pk:
+                raise self.INVALID_REFRESH_TOKEN_ERROR
 
-        session.revoked_at = timezone.now()
-        session.save(update_fields=["revoked_at"])
+            session.revoked_at = timezone.now()
+            session.save(update_fields=["revoked_at"])
 
     def _issue_refresh_token(self) -> str:
         return secrets.token_urlsafe(nbytes=self._settings.refresh_token_nbytes)
@@ -105,7 +140,7 @@ class RefreshSessionService(BaseService):
         *,
         for_update: bool = False,
     ) -> models.QuerySet[RefreshSession]:
-        queryset = RefreshSession.objects.all()
+        queryset = RefreshSession.objects.select_related("user")
         if for_update:
             queryset = queryset.select_for_update()
 

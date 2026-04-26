@@ -5,7 +5,7 @@ from fastdjango.core.health.use_cases import SystemHealthUseCase
 
 
 class BrokenSessionManager:
-    def first(self) -> None:
+    async def afirst(self) -> None:
         msg = "database unavailable"
         raise RuntimeError(msg)
 
@@ -14,10 +14,11 @@ class BrokenSession:
     objects = BrokenSessionManager()
 
 
-def test_health_check_maps_unexpected_errors_to_health_check_error(
+@pytest.mark.anyio
+async def test_health_check_maps_unexpected_errors_to_health_check_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(health_use_cases, "Session", BrokenSession)
 
     with pytest.raises(SystemHealthUseCase.HEALTH_CHECK_ERROR):
-        SystemHealthUseCase().check()
+        await SystemHealthUseCase().check()

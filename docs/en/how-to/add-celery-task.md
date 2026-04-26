@@ -161,11 +161,11 @@ From HTTP controllers or other services:
 
 ```python
 @dataclass(kw_only=True)
-class UserController(BaseTransactionController):
+class UserController(BaseAsyncController):
     _tasks_registry: TasksRegistry
 
-    def create_user(self, body: CreateUserSchema) -> UserSchema:
-        user = self._user_use_case.create_user(...)
+    async def create_user(self, body: CreateUserSchema) -> UserSchema:
+        user = await self._user_use_case.create_user(...)
 
         # Queue welcome email
         self._tasks_registry.send_email.delay(

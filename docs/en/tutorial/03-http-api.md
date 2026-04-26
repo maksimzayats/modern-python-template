@@ -114,11 +114,11 @@ from fastdjango.core.todo.delivery.fastapi.schemas import (
     TodoSchema,
     UpdateTodoRequestSchema,
 )
-from fastdjango.infrastructure.django.controllers import BaseTransactionController
+from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
-class TodoController(BaseTransactionController):
+class TodoController(BaseAsyncController):
     """HTTP controller for todo operations."""
 
     _todo_service: TodoService
@@ -169,14 +169,14 @@ class TodoController(BaseTransactionController):
             dependencies=[Depends(self._jwt_auth)],
         )
 
-    def list_todos(
+    async def list_todos(
         self,
         request: AuthenticatedRequest,
         completed: bool | None = Query(default=None),
     ) -> TodoListSchema:
         """List all todos for the authenticated user."""
         user = request.state.user
-        todos = self._todo_service.list_todos_for_user(user, completed=completed)
+        todos = await self._todo_service.list_todos_for_user(user, completed=completed)
 
         return TodoListSchema(
             todos=[
@@ -186,14 +186,14 @@ class TodoController(BaseTransactionController):
             count=len(todos),
         )
 
-    def create_todo(
+    async def create_todo(
         self,
         request: AuthenticatedRequest,
         body: CreateTodoRequestSchema,
     ) -> TodoSchema:
         """Create a new todo."""
         user = request.state.user
-        todo = self._todo_service.create_todo(
+        todo = await self._todo_service.create_todo(
             user,
             title=body.title,
             description=body.description,
@@ -201,18 +201,18 @@ class TodoController(BaseTransactionController):
 
         return TodoSchema.model_validate(todo, from_attributes=True)
 
-    def get_todo(
+    async def get_todo(
         self,
         request: AuthenticatedRequest,
         todo_id: int,
     ) -> TodoSchema:
         """Get a specific todo by ID."""
         user = request.state.user
-        todo = self._todo_service.get_todo_by_id(todo_id, user)
+        todo = await self._todo_service.get_todo_by_id(todo_id, user)
 
         return TodoSchema.model_validate(todo, from_attributes=True)
 
-    def update_todo(
+    async def update_todo(
         self,
         request: AuthenticatedRequest,
         todo_id: int,
@@ -221,7 +221,7 @@ class TodoController(BaseTransactionController):
         """Update a todo."""
         user = request.state.user
 
-        todo = self._todo_service.update_todo(
+        todo = await self._todo_service.update_todo(
             todo_id,
             user,
             title=body.title,
@@ -231,16 +231,16 @@ class TodoController(BaseTransactionController):
 
         return TodoSchema.model_validate(todo, from_attributes=True)
 
-    def delete_todo(
+    async def delete_todo(
         self,
         request: AuthenticatedRequest,
         todo_id: int,
     ) -> None:
         """Delete a todo."""
         user = request.state.user
-        self._todo_service.delete_todo(todo_id, user)
+        await self._todo_service.delete_todo(todo_id, user)
 
-    def handle_exception(self, exception: Exception) -> Any:
+    async def handle_exception(self, exception: Exception) -> Any:
         """Map domain exceptions to HTTP responses."""
         if isinstance(exception, TodoNotFoundError):
             raise HTTPException(
@@ -254,19 +254,20 @@ class TodoController(BaseTransactionController):
                 detail=str(exception),
             ) from exception
 
-        return super().handle_exception(exception)
+        return await super().handle_exception(exception)
 ```
 
 ## Key Controller Patterns
 
-### BaseTransactionController
+### BaseAsyncController
 
-Extending `BaseTransactionController` provides:
+Extending `BaseAsyncController` provides:
 
-- **Automatic transaction wrapping**: Database operations run in atomic transactions
 - **Exception handling**: Public methods are wrapped with `handle_exception`
-- **Logfire tracing**: Spans are created for each method call
+- **Async guardrails**: Sync route methods fail fast
 
+Keep Django transactions inside short sync service or use-case methods named
+`*_transactionally`, called with `sync_to_async(..., thread_sensitive=True)`.
 ### JWT Authentication
 
 The `JWTAuthFactory` creates authentication dependencies:

@@ -105,6 +105,7 @@ Create `src/fastdjango/core/product/services.py`:
 from dataclasses import dataclass
 from decimal import Decimal
 
+from asgiref.sync import sync_to_async
 from django.db import transaction
 
 from fastdjango.core.product.exceptions import ProductNotFoundError
@@ -114,31 +115,43 @@ from fastdjango.core.product.models import Product
 
 @dataclass(kw_only=True)
 class ProductService(BaseService):
-    def get_product_by_id(self, product_id: int) -> Product:
+    async def get_product_by_id(self, product_id: int) -> Product:
         try:
-            return Product.objects.get(id=product_id)
+            return await Product.objects.aget(id=product_id)
         except Product.DoesNotExist as e:
             raise ProductNotFoundError(f"Product {product_id} not found") from e
 
-    def list_products(self, *, active_only: bool = True) -> list[Product]:
+    async def list_products(self, *, active_only: bool = True) -> list[Product]:
         queryset = Product.objects.all()
         if active_only:
             queryset = queryset.filter(is_active=True)
-        return list(queryset)
+        return [product async for product in queryset]
 
-    @transaction.atomic
-    def create_product(
+    async def create_product(
         self,
         *,
         name: str,
         description: str = "",
         price: Decimal,
     ) -> Product:
-        return Product.objects.create(
-            name=name,
-            description=description,
-            price=price,
-        )
+        return await sync_to_async(
+            self._create_product_transactionally,
+            thread_sensitive=True,
+        )(name=name, description=description, price=price)
+
+    def _create_product_transactionally(
+        self,
+        *,
+        name: str,
+        description: str = "",
+        price: Decimal,
+    ) -> Product:
+        with transaction.atomic():
+            return Product.objects.create(
+                name=name,
+                description=description,
+                price=price,
+            )
 ```
 
 ### 6. Create Delivery Directories
@@ -198,11 +211,11 @@ from fastdjango.core.product.delivery.fastapi.schemas import (
     CreateProductRequestSchema,
     ProductSchema,
 )
-from fastdjango.infrastructure.django.controllers import BaseTransactionController
+from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
-class ProductController(BaseTransactionController):
+class ProductController(BaseAsyncController):
     _product_service: ProductService
     _jwt_auth_factory: JWTAuthFactory
 
@@ -232,32 +245,32 @@ class ProductController(BaseTransactionController):
             dependencies=[Depends(self._staff_auth)],  # Staff only
         )
 
-    def list_products(self) -> list[ProductSchema]:
-        products = self._product_service.list_products()
+    async def list_products(self) -> list[ProductSchema]:
+        products = await self._product_service.list_products()
         return [
             ProductSchema.model_validate(p, from_attributes=True)
             for p in products
         ]
 
-    def get_product(self, product_id: int) -> ProductSchema:
-        product = self._product_service.get_product_by_id(product_id)
+    async def get_product(self, product_id: int) -> ProductSchema:
+        product = await self._product_service.get_product_by_id(product_id)
         return ProductSchema.model_validate(product, from_attributes=True)
 
-    def create_product(self, body: CreateProductRequestSchema) -> ProductSchema:
-        product = self._product_service.create_product(
+    async def create_product(self, body: CreateProductRequestSchema) -> ProductSchema:
+        product = await self._product_service.create_product(
             name=body.name,
             description=body.description,
             price=body.price,
         )
         return ProductSchema.model_validate(product, from_attributes=True)
 
-    def handle_exception(self, exception: Exception) -> Any:
+    async def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, ProductNotFoundError):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=str(exception),
             ) from exception
-        return super().handle_exception(exception)
+        return await super().handle_exception(exception)
 ```
 
 ### 9. Register the Controller

@@ -7,13 +7,13 @@ from fastapi import APIRouter, HTTPException
 
 from fastdjango.core.health.delivery.fastapi.schemas import HealthCheckResponseSchema
 from fastdjango.core.health.use_cases import SystemHealthUseCase
-from fastdjango.foundation.delivery.controllers import BaseController
+from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(kw_only=True)
-class HealthController(BaseController):
+class HealthController(BaseAsyncController):
     _system_health_use_case: Injected[SystemHealthUseCase]
 
     def register(self, registry: APIRouter) -> None:
@@ -24,9 +24,9 @@ class HealthController(BaseController):
             response_model=HealthCheckResponseSchema,
         )
 
-    def health_check(self) -> HealthCheckResponseSchema:
+    async def health_check(self) -> HealthCheckResponseSchema:
         try:
-            self._system_health_use_case.check()
+            await self._system_health_use_case.check()
         except SystemHealthUseCase.HEALTH_CHECK_ERROR as e:
             raise HTTPException(
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,

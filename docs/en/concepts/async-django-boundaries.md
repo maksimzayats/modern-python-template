@@ -1,0 +1,58 @@
+# Async Django Boundaries
+
+FastAPI delivery is async-first. Controllers inherit `BaseAsyncController`, public
+use-case and service methods are async where they are called from HTTP flows, and
+Django connection cleanup is handled at the FastAPI request boundary.
+
+## The Rule
+
+Async code may do non-transactional ORM reads with Django's async ORM methods:
+
+```python
+async def get_user_by_id(self, user_id: int) -> User | None:
+    return await User.objects.filter(id=user_id).afirst()
+```
+
+Django transactions stay sync. If a workflow needs `transaction.atomic()`, keep
+the transaction in a small sync method and call it from async orchestration with
+`sync_to_async(..., thread_sensitive=True)`:
+
+```python
+from django.contrib.auth.hashers import make_password
+
+
+async def create_user(self, data: CreateUserDTO) -> User:
+    return await sync_to_async(
+        self._create_user_transactionally,
+        thread_sensitive=True,
+    )(data=data)
+
+def _create_user_transactionally(self, data: CreateUserDTO) -> User:
+    password = make_password(data.password)
+
+    with transaction.atomic():
+        return User.objects.create(..., password=password)
+```
+
+Never put `await` inside a Django transaction. Do async/network work before or
+after the transaction, or use an outbox/job table when the workflow needs
+reliable external side effects.
+
+Django password hashing, password validation, and `check_password()` are sync
+CPU work. Keep them in a sync use-case/service method and call that method with
+`sync_to_async(..., thread_sensitive=True)` instead of running them on the event
+loop. Also do password hashing and validation before opening `transaction.atomic()`
+so transactions do not sit idle while CPU work runs.
+
+## Connection Handling
+
+FastAPI runs without Django's request handler, so the app adds Django connection
+cleanup middleware around each HTTP request. The middleware also creates an
+`asgiref.sync.ThreadSensitiveContext`, matching Django's ASGI handler, so
+thread-sensitive ORM work for one request shares one worker thread and connection
+lifecycle.
+
+`DATABASE_CONN_MAX_AGE` defaults to `0` for ASGI; use database/backend pooling
+rather than Django persistent connections. Docker routes application traffic
+through PgBouncer in transaction pooling mode, so
+`DATABASE_DISABLE_SERVER_SIDE_CURSORS` defaults to `true`.

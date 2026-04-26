@@ -12,6 +12,7 @@
 - Keep ignores clear and non-repetitive.
 - Do not commit, push, reset, or revert unless explicitly asked.
 - Use `prek` for format, lint, and type-check hooks; avoid direct tool commands unless isolating a failure.
+- Before saying work is complete, self-review changed tests, docs/comments, leftovers, and staged/unstaged/untracked files; fix issues before reporting done.
 - Validate changes before the final response; report exact checks that ran.
 - Report checks that ran; say when important checks were skipped or failed.
 
@@ -30,6 +31,9 @@
 
 - Controllers call use cases or services; use cases and services own ORM access.
 - Controllers must not query Django models directly.
+- FastAPI delivery is async-first.
+- Keep Django transactions short, synchronous, and inside use-case/service methods.
+- Do async, network, or expensive CPU work before or after Django transactions.
 - Admin, migrations, and tests may touch models directly.
 - Delivery folders are infrastructure-specific: `fastapi`, `django`, `celery`.
 - Delivery schemas stay in delivery layers; DTOs stay near use cases.
@@ -39,7 +43,9 @@
 ## Class Markers
 
 - Use `BaseService`, `BaseUseCase`, `BaseFactory`, and `BaseConfigurator`.
-- Use `BaseController`, `BaseAsyncController`, and `BaseTransactionController`.
+- Use `BaseAsyncController` for FastAPI controllers.
+- Use `BaseController` for sync non-FastAPI delivery such as Celery task controllers.
+- Use `BaseTransactionController` only for sync delivery that intentionally wraps every handler in a Django transaction.
 - Use `BaseDTO`, `BaseFastAPISchema`, and `BaseCelerySchema`.
 - Use `BaseTasksRegistry` for task registries.
 - Use `BaseThrottler` for FastAPI throttlers.
@@ -62,10 +68,13 @@
 - Use `apply_patch` for manual edits.
 - Prefer explicit readable code over clever typing workarounds.
 - Use casts only at real third-party or protocol typing boundaries.
+- Name sync methods that open Django transactions with `_transactionally`.
+- Do not use `sync_to_async` in FastAPI delivery modules.
 - In `infrastructure/django/settings.py`, keep direct settings construction with line-local ignores.
 - Do not replace direct settings construction with helper functions or casts.
 - Add comments only for non-obvious behavior.
-- Tests should cover template behavior, not framework internals.
+- Tests should cover behavior or architectural contracts, not framework internals or static defaults.
+- Use coverage ignores for configuration-only modules when coverage would otherwise incentivize meaningless tests.
 - Keep docs short, current, and user-friendly.
 
 ## Commands

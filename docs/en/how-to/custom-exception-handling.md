@@ -8,7 +8,7 @@ Convert service-level exceptions into meaningful HTTP error responses.
 
 ## Prerequisites
 
-- A controller extending `BaseController` or `BaseTransactionController`
+- A controller extending `BaseController` or `BaseAsyncController`
 - Domain exceptions defined in `exceptions.py`
 
 ## The Pattern
@@ -21,13 +21,13 @@ from typing import Any
 from fastapi import HTTPException, status
 
 
-def handle_exception(self, exception: Exception) -> Any:
+async def handle_exception(self, exception: Exception) -> Any:
     if isinstance(exception, YourDomainError):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exception),
         ) from exception
-    return super().handle_exception(exception)
+    return await super().handle_exception(exception)
 ```
 
 ## Step-by-Step
@@ -110,11 +110,11 @@ from fastdjango.core.order.exceptions import (
 from fastdjango.core.order.services import (
     OrderService,
 )
-from fastdjango.infrastructure.django.controllers import BaseTransactionController
+from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
-class OrderController(BaseTransactionController):
+class OrderController(BaseAsyncController):
     _order_service: OrderService
 
     def register(self, registry: APIRouter) -> None:
@@ -124,11 +124,11 @@ class OrderController(BaseTransactionController):
             methods=["POST"],
         )
 
-    def pay_order(self, order_id: int) -> OrderSchema:
-        order = self._order_service.pay_order(order_id)
+    async def pay_order(self, order_id: int) -> OrderSchema:
+        order = await self._order_service.pay_order(order_id)
         return OrderSchema.model_validate(order, from_attributes=True)
 
-    def handle_exception(self, exception: Exception) -> Any:
+    async def handle_exception(self, exception: Exception) -> Any:
         # 404 - Resource not found
         if isinstance(exception, OrderNotFoundError):
             raise HTTPException(
@@ -158,7 +158,7 @@ class OrderController(BaseTransactionController):
             ) from exception
 
         # Re-raise unknown exceptions
-        return super().handle_exception(exception)
+        return await super().handle_exception(exception)
 ```
 
 ## Exception to HTTP Status Mapping
@@ -191,7 +191,7 @@ class ErrorResponseSchema(BaseFastAPISchema):
 Then use it in exception handling:
 
 ```python
-def handle_exception(self, exception: Exception) -> Any:
+async def handle_exception(self, exception: Exception) -> Any:
     if isinstance(exception, InsufficientStockError):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -211,7 +211,7 @@ def handle_exception(self, exception: Exception) -> Any:
 Handle multiple similar exceptions together:
 
 ```python
-def handle_exception(self, exception: Exception) -> Any:
+async def handle_exception(self, exception: Exception) -> Any:
     # Group 404 errors
     not_found_errors = (
         OrderNotFoundError,
@@ -235,7 +235,7 @@ def handle_exception(self, exception: Exception) -> Any:
             detail=str(exception),
         ) from exception
 
-    return super().handle_exception(exception)
+    return await super().handle_exception(exception)
 ```
 
 ## Testing Exception Handling

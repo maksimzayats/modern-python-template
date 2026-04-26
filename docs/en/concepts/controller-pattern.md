@@ -4,8 +4,8 @@ Controllers provide a unified pattern for handling requests from any source: HTT
 
 ## The Core Abstraction
 
-Synchronous controllers inherit from `BaseController`; asynchronous controllers
-inherit from `BaseAsyncController`:
+FastAPI controllers inherit from `BaseAsyncController`. Synchronous controllers
+are still available for sync delivery mechanisms such as Celery:
 
 ```python
 # src/fastdjango/foundation/delivery/controllers.py
@@ -77,8 +77,8 @@ def _wrap_route(self, method: Callable[..., Any]) -> Callable[..., Any]:
 ```
 
 This means every public method automatically goes through `handle_exception()` if it raises.
-Use `BaseController` for sync route methods and `BaseAsyncController` for async
-route methods; the base classes fail fast when the route style does not match.
+Use `BaseAsyncController` for FastAPI route methods and `BaseController` for sync
+delivery. The base classes fail fast when the route style does not match.
 
 ### 3. Custom Exception Handling
 
@@ -95,9 +95,10 @@ def handle_exception(self, exception: Exception) -> Any:
 
 ## BaseTransactionController
 
-For sync database operations, use `BaseTransactionController`. Async route
-methods should use `BaseAsyncController` and keep Django transaction management
-inside synchronous services or use cases.
+For sync delivery that intentionally wraps every handler in one transaction, use
+`BaseTransactionController`. FastAPI route methods should use
+`BaseAsyncController` and keep Django transaction management inside small
+synchronous service or use-case methods.
 
 ```python
 # src/fastdjango/infrastructure/django/controllers.py
@@ -149,11 +150,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from fastdjango.core.user.use_cases import UserUseCase
 from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRequest, JWTAuthFactory
-from fastdjango.infrastructure.django.controllers import BaseTransactionController
+from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 
 @dataclass(kw_only=True)
-class UserController(BaseTransactionController):
+class UserController(BaseAsyncController):
     """HTTP controller for user operations."""
 
     _jwt_auth_factory: JWTAuthFactory
@@ -173,16 +174,16 @@ class UserController(BaseTransactionController):
             dependencies=[Depends(self._jwt_auth)],
         )
 
-    def get_current_user(self, request: AuthenticatedRequest) -> UserSchema:
+    async def get_current_user(self, request: AuthenticatedRequest) -> UserSchema:
         return UserSchema.model_validate(request.state.user, from_attributes=True)
 
-    def handle_exception(self, exception: Exception) -> Any:
+    async def handle_exception(self, exception: Exception) -> Any:
         if isinstance(exception, UserNotFoundError):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=str(exception),
             ) from exception
-        return super().handle_exception(exception)
+        return await super().handle_exception(exception)
 ```
 
 ### Key Patterns
@@ -217,40 +218,28 @@ class PingTaskController(BaseController):
 !!! note "Dataclass decorator"
     Controllers without dependencies don't need the `@dataclass` decorator. The base `BaseController` class already uses `@dataclass(kw_only=True)`, so subclasses inherit that behavior. Only add `@dataclass(kw_only=True)` when you have dependency fields to inject.
 
-## Sync vs Async Handlers
+## Async HTTP Handlers
 
-### Prefer Sync Handlers
-
-FastAPI runs sync handlers in a thread pool automatically:
+FastAPI controllers should expose async handlers:
 
 ```python
-# ✅ Recommended - sync handler
-def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
-    user = self._user_use_case.get_user_by_id(user_id)
+async def get_user(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
+    user = await self._user_use_case.get_user_by_id(user_id)
     return UserSchema.model_validate(user, from_attributes=True)
 ```
 
-### Async When Needed
-
-For truly async operations (external APIs, etc.):
+If the workflow needs a Django transaction, the async use case calls a short sync
+transactional method:
 
 ```python
 from asgiref.sync import sync_to_async
 
-async def get_user_async(self, request: AuthenticatedRequest, user_id: int) -> UserSchema:
-    user = await sync_to_async(
-        self._user_use_case.get_user_by_id,
-        thread_sensitive=False,  # Read-only = parallel OK
-    )(user_id)
-    return UserSchema.model_validate(user, from_attributes=True)
+async def create_user(self, data: CreateUserDTO) -> User:
+    return await sync_to_async(
+        self._create_user_transactionally,
+        thread_sensitive=True,
+    )(data=data)
 ```
-
-Thread sensitivity:
-
-| `thread_sensitive` | Use Case |
-|-------------------|----------|
-| `False` | Read-only operations (SELECT) |
-| `True` | Write operations (INSERT/UPDATE/DELETE) |
 
 ## Controller Registration
 

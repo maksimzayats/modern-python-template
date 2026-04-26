@@ -25,7 +25,7 @@ This causes problems:
 
 ## The Solution
 
-The service layer acts as an intermediary:
+The service layer acts as an intermediary. FastAPI-facing workflows are async:
 
 ```python
 # ✅ Correct - Controller uses a use case or service
@@ -35,8 +35,8 @@ class UserController:
     def __init__(self, user_use_case: UserUseCase) -> None:
         self._user_use_case = user_use_case
 
-    def get_user(self, user_id: int) -> UserSchema:
-        user = self._user_use_case.get_user_by_id(user_id)
+    async def get_user(self, user_id: int) -> UserSchema:
+        user = await self._user_use_case.get_user_by_id(user_id)
         return UserSchema.model_validate(user, from_attributes=True)
 ```
 
@@ -72,19 +72,29 @@ from fastdjango.core.user.models import User
 class TodoService(BaseService):
     """Service for todo operations."""
 
-    def get_todo_by_id(self, todo_id: int) -> Todo:
+    async def get_todo_by_id(self, todo_id: int) -> Todo:
         try:
-            return Todo.objects.get(id=todo_id)
+            return await Todo.objects.aget(id=todo_id)
         except Todo.DoesNotExist as e:
             raise TodoNotFoundError(f"Todo {todo_id} not found") from e
 
-    def list_todos(self) -> list[Todo]:
-        return list(Todo.objects.all())
+    async def list_todos(self) -> list[Todo]:
+        return [todo async for todo in Todo.objects.all()]
 
-    @transaction.atomic
-    def create_todo(self, user: User, title: str) -> Todo:
-        return Todo.objects.create(user=user, title=title)
+    async def create_todo(self, user: User, title: str) -> Todo:
+        return await sync_to_async(
+            self._create_todo_transactionally,
+            thread_sensitive=True,
+        )(user=user, title=title)
+
+    def _create_todo_transactionally(self, user: User, title: str) -> Todo:
+        with transaction.atomic():
+            return Todo.objects.create(user=user, title=title)
 ```
+
+Django transactions are sync-only. Keep them in short methods named
+`*_transactionally` and call them from async orchestration with
+`sync_to_async(..., thread_sensitive=True)`.
 
 ### Return Value Patterns
 
@@ -182,7 +192,7 @@ def handle_exception(self, exception: Exception) -> Any:
 
 ## Transaction Management
 
-Use `@transaction.atomic` for database writes:
+Use a short sync transaction island for database writes:
 
 ```python
 from django.db import transaction
@@ -191,15 +201,22 @@ from fastdjango.foundation.services import BaseService
 
 @dataclass(kw_only=True)
 class TodoService(BaseService):
-    @transaction.atomic
-    def create_todo(self, user: User, title: str) -> Todo:
-        todo = Todo.objects.create(user=user, title=title)
-        # If anything fails here, the transaction rolls back
-        self._audit_service.log_creation(todo)
-        return todo
+    async def create_todo(self, user: User, title: str) -> Todo:
+        return await sync_to_async(
+            self._create_todo_transactionally,
+            thread_sensitive=True,
+        )(user=user, title=title)
+
+    def _create_todo_transactionally(self, user: User, title: str) -> Todo:
+        with transaction.atomic():
+            todo = Todo.objects.create(user=user, title=title)
+            # If anything fails here, the transaction rolls back
+            self._audit_service.log_creation(todo)
+            return todo
 ```
 
-The `BaseTransactionController` also wraps methods in transactions automatically.
+FastAPI controllers stay async and do not wrap whole request handlers in
+transactions.
 
 ## Acceptable Exceptions
 

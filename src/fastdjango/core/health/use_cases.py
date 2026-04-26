@@ -15,7 +15,7 @@ class SystemHealthUseCase(BaseUseCase):
     HEALTH_CHECK_ERROR: ClassVar = HealthCheckError
     UNEXPECTED_ERROR: ClassVar = Exception
 
-    def check(self) -> None:
+    async def check(self) -> None:
         """Check the health of the system components.
 
         Raises:
@@ -23,7 +23,7 @@ class SystemHealthUseCase(BaseUseCase):
         """
         try:
             # Perform a simple database query to check connectivity
-            Session.objects.first()
+            await Session.objects.afirst()
         except self.UNEXPECTED_ERROR as e:
             logger.exception("Health check failed: database is not reachable")
             raise self.HEALTH_CHECK_ERROR from e

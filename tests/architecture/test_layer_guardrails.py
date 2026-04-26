@@ -394,6 +394,130 @@ def test_fastapi_controllers_are_registered_by_fastapi_factory() -> None:
     )
 
 
+def test_fastapi_controllers_are_async_first() -> None:
+    violations = [
+        f"{module.relative_path}:{class_node.lineno} {class_node.name}"
+        for module, class_node in _iter_fastapi_controller_classes()
+        if not has_base(class_node, {"BaseAsyncController"})
+    ]
+
+    assert violations == [], "Concrete FastAPI controllers must inherit BaseAsyncController."
+
+
+def test_fastapi_controller_endpoints_are_async() -> None:
+    violations = [
+        f"{module.relative_path}:{method_node.lineno} {class_node.name}.{method_node.name}"
+        for module, class_node in _iter_fastapi_controller_classes()
+        for method_node in _iter_public_controller_endpoint_methods(class_node)
+        if not isinstance(method_node, ast.AsyncFunctionDef)
+    ]
+
+    assert violations == [], "FastAPI controller endpoints must be async def methods."
+
+
+def test_fastapi_delivery_does_not_bridge_sync_orm_calls() -> None:
+    violations = [
+        f"{module.relative_path}:{node.lineno} calls sync_to_async"
+        for module in iter_source_modules()
+        if _is_delivery_framework_module(module, "fastapi")
+        for node in ast.walk(module.tree)
+        if isinstance(node, ast.Call)
+        if _is_sync_to_async_call(node)
+    ]
+
+    assert violations == [], (
+        "FastAPI delivery must stay async-native; sync_to_async belongs in use cases, "
+        "services, or infrastructure request-boundary code."
+    )
+
+
+def test_sync_to_async_calls_are_thread_sensitive() -> None:
+    violations = [
+        f"{module.relative_path}:{node.lineno} calls sync_to_async without thread_sensitive=True"
+        for module in iter_source_modules()
+        for node in ast.walk(module.tree)
+        if isinstance(node, ast.Call)
+        if _is_sync_to_async_call(node)
+        if not _has_true_keyword(node, "thread_sensitive")
+    ]
+
+    assert violations == [], (
+        "Django sync islands must use sync_to_async(..., thread_sensitive=True) so ORM "
+        "work and connection cleanup stay on the same thread-sensitive executor."
+    )
+
+
+def test_django_transactions_are_not_opened_inside_async_functions() -> None:
+    violations = [
+        f"{module.relative_path}:{function_node.lineno} {function_node.name}"
+        for module in iter_source_modules()
+        for function_node in ast.walk(module.tree)
+        if isinstance(function_node, ast.AsyncFunctionDef)
+        if _function_contains_transaction_boundary(function_node)
+    ]
+
+    assert violations == [], (
+        "Django transactions are sync-only; async functions must call a sync "
+        "transactional method through sync_to_async instead."
+    )
+
+
+def test_django_password_work_does_not_run_inside_async_functions() -> None:
+    violations = [
+        f"{module.relative_path}:{function_node.lineno} {function_node.name}"
+        for module in iter_source_modules()
+        for function_node in ast.walk(module.tree)
+        if isinstance(function_node, ast.AsyncFunctionDef)
+        if _function_contains_django_password_work(function_node)
+    ]
+
+    assert violations == [], (
+        "Django password hashing, validation, and verification are sync CPU work; "
+        "wrap them in a sync use-case/service method with sync_to_async(..., "
+        "thread_sensitive=True)."
+    )
+
+
+def test_django_password_work_does_not_run_inside_transactions() -> None:
+    violations = [
+        f"{module.relative_path}:{context_node.lineno}"
+        for module in iter_source_modules()
+        for context_node in ast.walk(module.tree)
+        if isinstance(context_node, ast.With)
+        if _is_transaction_context(context_node)
+        if _block_contains_django_password_work(context_node.body)
+    ]
+    violations.extend(
+        f"{module.relative_path}:{function_node.lineno} {function_node.name}"
+        for module in iter_source_modules()
+        for function_node in ast.walk(module.tree)
+        if isinstance(function_node, ast.FunctionDef | ast.AsyncFunctionDef)
+        if _has_transaction_decorator(function_node)
+        if _function_contains_django_password_work(function_node)
+    )
+
+    assert violations == [], (
+        "Django password hashing, validation, and verification are CPU work; "
+        "do them before opening transaction.atomic()."
+    )
+
+
+def test_core_transactional_sync_methods_use_transactional_suffix() -> None:
+    violations = [
+        f"{module.relative_path}:{function_node.lineno} {function_node.name}"
+        for module in iter_source_modules()
+        if module.source_parts[0] == "core"
+        for function_node in ast.walk(module.tree)
+        if isinstance(function_node, ast.FunctionDef)
+        if _function_contains_transaction_boundary(function_node)
+        if not function_node.name.endswith("_transactionally")
+    ]
+
+    assert violations == [], (
+        "Sync core methods that open Django transactions must end with _transactionally."
+    )
+
+
 def _is_forbidden_core_internal_import(module: SourceModule, module_name: str) -> bool:
     if module_name.startswith(
         ("fastdjango.entrypoints", "fastdjango.infrastructure", "fastdjango.ioc"),
@@ -937,6 +1061,65 @@ def _is_none_annotation(annotation: ast.expr) -> bool:
 def _has_non_none_keyword(call: ast.Call, keyword_name: str) -> bool:
     keyword_value = _keyword_value(call, keyword_name)
     return keyword_value is not None and not _is_none_annotation(keyword_value)
+
+
+def _has_true_keyword(call: ast.Call, keyword_name: str) -> bool:
+    keyword_value = _keyword_value(call, keyword_name)
+    return isinstance(keyword_value, ast.Constant) and keyword_value.value is True
+
+
+def _is_sync_to_async_call(call: ast.Call) -> bool:
+    return _annotation_name(call.func) == "sync_to_async"
+
+
+def _function_contains_transaction_boundary(
+    function_node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    return any(
+        isinstance(node, ast.Call) and _is_transaction_boundary_call(node)
+        for statement in function_node.body
+        for node in ast.walk(statement)
+    ) or _has_transaction_decorator(function_node)
+
+
+def _has_transaction_decorator(
+    function_node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    return any(_decorator_name(decorator) == "atomic" for decorator in function_node.decorator_list)
+
+
+def _is_transaction_boundary_call(call: ast.Call) -> bool:
+    return _annotation_name(call.func) in {"atomic", "traced_atomic"}
+
+
+def _function_contains_django_password_work(
+    function_node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    return _block_contains_django_password_work(function_node.body)
+
+
+def _block_contains_django_password_work(statements: list[ast.stmt]) -> bool:
+    return any(
+        isinstance(node, ast.Call) and _is_django_password_work_call(node)
+        for statement in statements
+        for node in ast.walk(statement)
+    )
+
+
+def _is_django_password_work_call(call: ast.Call) -> bool:
+    return _annotation_name(call.func) in {
+        "check_password",
+        "make_password",
+        "set_password",
+        "validate_password",
+    }
+
+
+def _is_transaction_context(context_node: ast.With) -> bool:
+    return any(
+        isinstance(item.context_expr, ast.Call) and _is_transaction_boundary_call(item.context_expr)
+        for item in context_node.items
+    )
 
 
 def _decorator_name(decorator: ast.expr) -> str | None:

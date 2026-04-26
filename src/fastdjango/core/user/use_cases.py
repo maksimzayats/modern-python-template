@@ -1,8 +1,11 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
+from asgiref.sync import sync_to_async
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from fastdjango.core.user.dtos import CreateUserDTO
 from fastdjango.core.user.exceptions import UserAlreadyExistsError, WeakPasswordError
@@ -17,13 +20,23 @@ class UserUseCase(BaseUseCase):
     WEAK_PASSWORD_ERROR: ClassVar = WeakPasswordError
     USER_ALREADY_EXISTS_ERROR: ClassVar = UserAlreadyExistsError
 
-    def get_user_by_id(self, user_id: int) -> User | None:
-        return User.objects.filter(id=user_id).first()
+    async def get_user_by_id(self, user_id: int) -> User | None:
+        return await User.objects.filter(id=user_id).afirst()
 
-    def get_active_user_by_id(self, user_id: int) -> User | None:
-        return User.objects.filter(id=user_id, is_active=True).first()
+    async def get_active_user_by_id(self, user_id: int) -> User | None:
+        return await User.objects.filter(id=user_id, is_active=True).afirst()
 
-    def get_user_by_username_and_password(
+    async def get_user_by_username_and_password(
+        self,
+        username: str,
+        password: str,
+    ) -> User | None:
+        return await sync_to_async(
+            self._get_user_by_username_and_password,
+            thread_sensitive=True,
+        )(username=username, password=password)
+
+    def _get_user_by_username_and_password(
         self,
         username: str,
         password: str,
@@ -38,12 +51,14 @@ class UserUseCase(BaseUseCase):
 
         return user
 
-    def get_user_by_username_or_email(
+    async def get_user_by_username_or_email(
         self,
         username: str,
         email: str,
     ) -> User | None:
-        return (User.objects.filter(username=username) | User.objects.filter(email=email)).first()
+        return await (
+            User.objects.filter(username=username) | User.objects.filter(email=email)
+        ).afirst()
 
     def is_valid_password(
         self,
@@ -68,7 +83,16 @@ class UserUseCase(BaseUseCase):
 
         return True
 
-    def create_user(
+    async def create_user(
+        self,
+        data: CreateUserDTO,
+    ) -> User:
+        return await sync_to_async(
+            self._create_user_transactionally,
+            thread_sensitive=True,
+        )(data=data)
+
+    def _create_user_transactionally(
         self,
         data: CreateUserDTO,
     ) -> User:
@@ -76,17 +100,21 @@ class UserUseCase(BaseUseCase):
         if not is_valid_password:
             raise self.WEAK_PASSWORD_ERROR
 
-        existing_user = self.get_user_by_username_or_email(
-            username=data.username,
-            email=str(data.email),
-        )
-        if existing_user is not None:
-            raise self.USER_ALREADY_EXISTS_ERROR
+        username = User.normalize_username(data.username)
+        email = User.objects.normalize_email(str(data.email))
+        password = make_password(data.password)
 
-        return User.objects.create_user(
-            username=data.username,
-            email=str(data.email),
-            first_name=data.first_name,
-            last_name=data.last_name,
-            password=data.password,
-        )
+        with transaction.atomic():
+            existing_user = (
+                User.objects.filter(username=username) | User.objects.filter(email=email)
+            ).first()
+            if existing_user is not None:
+                raise self.USER_ALREADY_EXISTS_ERROR
+
+            return User.objects.create(
+                username=username,
+                email=email,
+                first_name=data.first_name,
+                last_name=data.last_name,
+                password=password,
+            )
