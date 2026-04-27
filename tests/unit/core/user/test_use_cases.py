@@ -1,5 +1,6 @@
 import pytest
 from asgiref.sync import sync_to_async
+from django.db import IntegrityError
 
 from fastdjango.core.user.dtos import CreateUserDTO
 from fastdjango.core.user.models import User
@@ -52,6 +53,22 @@ async def test_create_user_rejects_existing_username_or_email(
     user_count = await sync_to_async(User.objects.count, thread_sensitive=True)()
 
     assert user_count == 1
+
+
+@pytest.mark.anyio
+@pytest.mark.django_db(transaction=True)
+async def test_create_user_maps_integrity_error_to_already_exists_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    use_case = UserUseCase(_transaction_factory=DjangoTransactionFactory())
+
+    def raise_integrity_error(**kwargs: object) -> None:
+        raise IntegrityError
+
+    monkeypatch.setattr(User.objects, "create", raise_integrity_error)
+
+    with pytest.raises(UserUseCase.USER_ALREADY_EXISTS_ERROR):
+        await use_case.create_user(data=_create_user_dto())
 
 
 def _create_user_dto(

@@ -6,11 +6,15 @@ methods are async where they are called from delivery flows, and Django
 connection cleanup is handled at the FastAPI request boundary or Celery task
 bridge.
 
-## The Rule
+## The rule
 
 Async code may do non-transactional ORM reads with Django's async ORM methods:
 
 ```python
+# src/fastdjango/core/user/use_cases.py
+from fastdjango.core.user.models import User
+
+
 async def get_user_by_id(self, *, user_id: int) -> User | None:
     return await User.objects.filter(id=user_id).afirst()
 ```
@@ -20,10 +24,15 @@ If a workflow needs a transaction, keep it in a small sync method and call it
 from async orchestration with `sync_to_async(..., thread_sensitive=True)`:
 
 ```python
+# src/fastdjango/core/user/use_cases.py
+from asgiref.sync import sync_to_async
 from django.contrib.auth.hashers import make_password
 from diwire import Injected
 
+from fastdjango.core.user.dtos import CreateUserDTO
+from fastdjango.core.user.models import User
 from fastdjango.foundation.transactions import TransactionFactory
+from fastdjango.foundation.use_cases import BaseUseCase
 
 
 class UserUseCase(BaseUseCase):
@@ -52,7 +61,7 @@ CPU work. Keep them in a sync use-case/service method and call that method with
 loop. Also do password hashing and validation before opening the transaction so
 the database transaction does not sit idle while CPU work runs.
 
-## Connection Handling
+## Connection handling
 
 FastAPI and Celery run without Django's request handler, so the app adds Django
 connection cleanup middleware around each HTTP request and WebSocket connection,

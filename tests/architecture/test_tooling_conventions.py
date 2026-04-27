@@ -42,9 +42,11 @@ def test_ruff_config_keeps_broad_rule_selection_and_safe_preview() -> None:
 
 def test_makefile_quality_targets_use_prek() -> None:
     makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    format_recipe = _make_target_recipe(makefile=makefile, target="format")
+    lint_recipe = _make_target_recipe(makefile=makefile, target="lint")
 
-    assert "format:\n\tuv run prek run" in makefile
-    assert "lint:\n\tuv run prek run --all-files" in makefile
+    assert any(command.startswith("uv run prek run") for command in format_recipe)
+    assert "uv run prek run --all-files" in lint_recipe
 
 
 def _prek_hooks_by_name() -> dict[str, dict[str, Any]]:
@@ -60,6 +62,27 @@ def _prek_hooks_by_name() -> dict[str, dict[str, Any]]:
 
 def _is_whole_project_hook(hook: dict[str, Any] | None) -> bool:
     return hook is not None and hook.get("pass_filenames") is False
+
+
+def _make_target_recipe(*, makefile: str, target: str) -> list[str]:
+    lines = makefile.splitlines()
+    target_header = f"{target}:"
+
+    for line_index, line in enumerate(lines):
+        if line != target_header:
+            continue
+
+        recipe: list[str] = []
+        for recipe_line in lines[line_index + 1 :]:
+            if not recipe_line:
+                continue
+            if not recipe_line.startswith("\t"):
+                break
+            recipe.append(recipe_line.strip())
+
+        return recipe
+
+    return []
 
 
 def _read_toml(path: Path) -> dict[str, Any]:

@@ -97,7 +97,7 @@ from fastdjango.core.authentication.delivery.fastapi.auth import AuthenticatedRe
 
 async def list_favorites(self, request: AuthenticatedRequest) -> list[ProductSchema]:
     user = request.state.user
-    return await self._product_service.list_favorites_for_user(user)
+    return await self._product_service.list_favorites_for_user(user=user)
 ```
 
 ## Complete Example
@@ -174,7 +174,7 @@ class ProductController(BaseAsyncController):
         request: AuthenticatedRequest,
     ) -> list[ProductSchema]:
         user = request.state.user
-        products = await self._product_service.list_favorites(user)
+        products = await self._product_service.list_favorites(user=user)
         return [
             ProductSchema.model_validate(p, from_attributes=True)
             for p in products

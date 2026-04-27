@@ -207,6 +207,7 @@ Create `src/fastdjango/core/product/delivery/fastapi/controllers.py`:
 from dataclasses import dataclass
 from typing import Any
 
+from diwire import Injected
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from fastdjango.core.product.exceptions import ProductNotFoundError
@@ -221,8 +222,8 @@ from fastdjango.foundation.delivery.controllers import BaseAsyncController
 
 @dataclass(kw_only=True)
 class ProductController(BaseAsyncController):
-    _product_service: ProductService
-    _jwt_auth_factory: JWTAuthFactory
+    _product_service: Injected[ProductService]
+    _jwt_auth_factory: Injected[JWTAuthFactory]
 
     def __post_init__(self) -> None:
         self._staff_auth = self._jwt_auth_factory(require_staff=True)
@@ -290,7 +291,7 @@ from fastdjango.core.product.delivery.fastapi.controllers import ProductControll
 @dataclass(kw_only=True)
 class FastAPIFactory(BaseFactory):
     # ... existing controller fields ...
-    _product_controller: ProductController  # Add this field
+    _product_controller: Injected[ProductController]  # Add this field
 
     def _register_controllers(self, app: FastAPI) -> None:
         # ... existing controller registrations ...

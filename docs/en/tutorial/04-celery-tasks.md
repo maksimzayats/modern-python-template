@@ -85,12 +85,17 @@ class TodoCleanupTaskController(BaseCeleryTaskController):
 
 ## Step 2: Add User List Method to UserUseCase
 
-The cleanup task needs to iterate over all users. Add this method to `src/fastdjango/core/user/use_cases.py`:
+The cleanup task needs to iterate over all users. Add the import near the top of
+`src/fastdjango/core/user/use_cases.py`:
 
 ```python
+# src/fastdjango/core/user/use_cases.py
 from asgiref.sync import sync_to_async
+```
 
+Then add the methods to `UserUseCase`:
 
+```python
 # Add to UserUseCase class in src/fastdjango/core/user/use_cases.py
 async def list_all_users(self) -> list[User]:
     """List all active users.

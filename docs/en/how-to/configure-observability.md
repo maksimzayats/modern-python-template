@@ -286,7 +286,7 @@ import logfire
 
 
 class SendEmailTaskController(BaseCeleryTaskController):
-    async def send_email(self, user_id: int, subject: str) -> SendResult:
+    async def send_email(self, *, user_id: int, subject: str) -> SendResult:
         logfire.info("Starting email send", user_id=user_id)
 
         try:

@@ -83,7 +83,7 @@ redis:
 ### Connection String
 
 ```bash
-REDIS_URL=redis://default:example-redis-password@localhost:6379/0
+REDIS_URL=redis://default:${REDIS_PASSWORD}@localhost:6379/0
 ```
 
 ### Commands

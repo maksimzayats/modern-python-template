@@ -33,15 +33,20 @@ class FakeTaskResult:
         *,
         payload: object | None = None,
         error: Exception | None = None,
+        delay_seconds: float = 0,
     ) -> None:
         self._payload = {"result": "pong"} if payload is None else payload
         self._error = error
+        self._delay_seconds = delay_seconds
         self.get_timeout: float | None = None
         self.forget_timeout: float | None = None
         self.forgot = False
 
     async def aget(self, *, timeout: float | None = None) -> object:  # noqa: ASYNC109
         self.get_timeout = timeout
+
+        if self._delay_seconds:
+            await asyncio.sleep(self._delay_seconds)
 
         if self._error is not None:
             raise self._error
@@ -159,6 +164,21 @@ async def test_health_check_maps_celery_enqueue_timeout_to_health_check_error(
 
 
 @pytest.mark.anyio
+async def test_health_check_forgets_celery_result_after_read_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(health_use_cases, "Session", WorkingSession)
+    monkeypatch.setattr(SystemHealthUseCase, "CELERY_PING_TIMEOUT_SECONDS", 0.01)
+    _, task_result, registry = _build_registry(result_delay_seconds=1)
+    use_case = SystemHealthUseCase(_tasks_registry=registry)
+
+    with pytest.raises(SystemHealthUseCase.HEALTH_CHECK_ERROR):
+        await use_case.check()
+
+    assert task_result.forgot is True
+
+
+@pytest.mark.anyio
 async def test_health_check_maps_unexpected_celery_payload_to_health_check_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -178,10 +198,12 @@ def _build_registry(
     error: type[Exception] | None = None,
     enqueue_error: type[Exception] | None = None,
     enqueue_delay_seconds: float = 0,
+    result_delay_seconds: float = 0,
 ) -> tuple[FakePingTask, FakeTaskResult, TasksRegistry]:
     task_result = FakeTaskResult(
         payload=payload,
         error=error() if error is not None else None,
+        delay_seconds=result_delay_seconds,
     )
     ping_task = FakePingTask(
         task_result=task_result,

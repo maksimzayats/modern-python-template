@@ -60,7 +60,11 @@ class InvalidOrderStateError(ApplicationError):
 ### 2. Raise Exceptions in Service
 
 ```python
+from asgiref.sync import sync_to_async
+from diwire import Injected
+
 from fastdjango.foundation.services import BaseService
+from fastdjango.foundation.transactions import TransactionFactory
 from fastdjango.core.order.exceptions import (
     InsufficientStockError,
     InvalidOrderStateError,
@@ -70,26 +74,38 @@ from fastdjango.core.order.exceptions import (
 
 @dataclass(kw_only=True)
 class OrderService(BaseService):
-    def get_order_by_id(self, *, order_id: int) -> Order:
+    _transaction_factory: Injected[TransactionFactory]
+
+    async def get_order_by_id(self, *, order_id: int) -> Order:
         try:
-            return Order.objects.get(id=order_id)
+            return await Order.objects.aget(id=order_id)
         except Order.DoesNotExist as e:
             raise OrderNotFoundError(f"Order {order_id} not found") from e
 
-    def pay_order(self, *, order_id: int) -> Order:
-        order = self.get_order_by_id(order_id=order_id)
+    async def pay_order(self, *, order_id: int) -> Order:
+        return await sync_to_async(
+            self._pay_order_transactionally,
+            thread_sensitive=True,
+        )(order_id=order_id)
 
-        if order.status == OrderStatus.PAID:
-            raise OrderAlreadyPaidError(f"Order {order_id} is already paid")
+    def _pay_order_transactionally(self, *, order_id: int) -> Order:
+        with self._transaction_factory(span_name="pay order"):
+            try:
+                order = Order.objects.get(id=order_id)
+            except Order.DoesNotExist as e:
+                raise OrderNotFoundError(f"Order {order_id} not found") from e
 
-        if order.status != OrderStatus.PENDING:
-            raise InvalidOrderStateError(
-                f"Cannot pay order in {order.status} state"
-            )
+            if order.status == OrderStatus.PAID:
+                raise OrderAlreadyPaidError(f"Order {order_id} is already paid")
 
-        order.status = OrderStatus.PAID
-        order.save()
-        return order
+            if order.status != OrderStatus.PENDING:
+                raise InvalidOrderStateError(
+                    f"Cannot pay order in {order.status} state"
+                )
+
+            order.status = OrderStatus.PAID
+            order.save()
+            return order
 ```
 
 ### 3. Map Exceptions in Controller

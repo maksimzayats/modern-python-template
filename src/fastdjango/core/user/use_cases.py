@@ -6,6 +6,7 @@ from diwire import Injected
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 
 from fastdjango.core.user.dtos import CreateUserDTO
 from fastdjango.core.user.exceptions import UserAlreadyExistsError, WeakPasswordError
@@ -20,6 +21,7 @@ class UserUseCase(BaseUseCase):
     PASSWORD_VALIDATION_ERROR: ClassVar = ValidationError
     WEAK_PASSWORD_ERROR: ClassVar = WeakPasswordError
     USER_ALREADY_EXISTS_ERROR: ClassVar = UserAlreadyExistsError
+    INTEGRITY_ERROR: ClassVar = IntegrityError
 
     _transaction_factory: Injected[TransactionFactory]
 
@@ -114,21 +116,24 @@ class UserUseCase(BaseUseCase):
         email = User.objects.normalize_email(str(data.email))
         password = make_password(data.password)
 
-        with self._transaction_factory(
-            span_name="create user",
-            use_case=type(self).__name__,
-            method="_create_user_transactionally",
-        ):
-            existing_user = (
-                User.objects.filter(username=username) | User.objects.filter(email=email)
-            ).first()
-            if existing_user is not None:
-                raise self.USER_ALREADY_EXISTS_ERROR
+        try:
+            with self._transaction_factory(
+                span_name="create user",
+                use_case=type(self).__name__,
+                method="_create_user_transactionally",
+            ):
+                existing_user = (
+                    User.objects.filter(username=username) | User.objects.filter(email=email)
+                ).first()
+                if existing_user is not None:
+                    raise self.USER_ALREADY_EXISTS_ERROR
 
-            return User.objects.create(
-                username=username,
-                email=email,
-                first_name=data.first_name,
-                last_name=data.last_name,
-                password=password,
-            )
+                return User.objects.create(
+                    username=username,
+                    email=email,
+                    first_name=data.first_name,
+                    last_name=data.last_name,
+                    password=password,
+                )
+        except self.INTEGRITY_ERROR as e:
+            raise self.USER_ALREADY_EXISTS_ERROR from e

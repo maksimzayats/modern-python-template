@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, cast
 
@@ -18,13 +19,25 @@ HEALTHCHECK_REQUIRED_SERVICES = {
     "redis",
 }
 HEALTHCHECK_COMMAND_TYPES = {"CMD", "CMD-SHELL", "NONE"}
+EXCLUDED_TOP_LEVEL_DIRS = {
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "build",
+    "dist",
+    "htmlcov",
+    "node_modules",
+    "venv",
+}
 
 
 def test_docker_assets_stay_in_docker_directory() -> None:
     violations = [
         str(path.relative_to(REPO_ROOT))
-        for path in REPO_ROOT.rglob("*")
-        if path.is_file()
+        for path in _iter_repo_files()
         if _is_docker_asset(path)
         if path.relative_to(REPO_ROOT).parts[0] != "docker"
     ]
@@ -86,6 +99,18 @@ def test_healthchecked_compose_dependencies_wait_until_healthy() -> None:
 
 def _iter_compose_files() -> list[Path]:
     return sorted((REPO_ROOT / "docker").glob("docker-compose*.yaml"))
+
+
+def _iter_repo_files() -> Iterable[Path]:
+    for entry in sorted(REPO_ROOT.iterdir()):
+        if entry.name in EXCLUDED_TOP_LEVEL_DIRS:
+            continue
+
+        if entry.is_file():
+            yield entry
+            continue
+
+        yield from (path for path in entry.rglob("*") if path.is_file())
 
 
 def _compose_config(file_name: str) -> dict[str, Any]:

@@ -555,8 +555,10 @@ def test_sync_to_async_calls_are_thread_sensitive() -> None:
     ]
 
     assert violations == [], (
-        "Django sync islands must use sync_to_async(..., thread_sensitive=True) so ORM "
-        "work and connection cleanup stay on the same thread-sensitive executor."
+        "Django sync islands must explicitly pass thread_sensitive=True to "
+        "sync_to_async, even though asgiref currently defaults to it, so ORM "
+        "work and connection cleanup stay on the same thread-sensitive executor "
+        "and future default changes cannot alter behavior."
     )
 
 
@@ -777,8 +779,9 @@ def _is_domain_logic_module(module: SourceModule) -> bool:
 
 
 def _is_core_behavior_module(module: SourceModule) -> bool:
+    is_service_module = module.path.name == "services.py" or "services" in module.source_parts
     return module.source_parts[0] == "core" and (
-        module.path.name == "use_cases.py" or "services" in module.source_parts
+        module.path.name == "use_cases.py" or is_service_module
     )
 
 

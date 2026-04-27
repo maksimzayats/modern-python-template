@@ -92,12 +92,12 @@ not match.
 Override `handle_exception()` to map domain exceptions to responses:
 
 ```python
-def handle_exception(self, exception: Exception) -> Any:
+async def handle_exception(self, exception: Exception) -> Any:
     if isinstance(exception, TodoNotFoundError):
         raise HTTPException(status_code=404, detail=str(exception))
     if isinstance(exception, TodoAccessDeniedError):
         raise HTTPException(status_code=403, detail=str(exception))
-    return super().handle_exception(exception)
+    return await super().handle_exception(exception)
 ```
 
 WebSocket handlers should accept the connection, delegate health or business
@@ -299,8 +299,8 @@ Exceptions are caught and handled uniformly.
 Test business logic at the use-case or service layer, and keep controller tests focused on delivery behavior:
 
 ```python
-def test_get_user_by_id(user_use_case: UserUseCase):
-    user = user_use_case.get_user_by_id(1)
+async def test_get_user_by_id(user_use_case: UserUseCase) -> None:
+    user = await user_use_case.get_user_by_id(user_id=1)
     assert user is not None
 ```
 

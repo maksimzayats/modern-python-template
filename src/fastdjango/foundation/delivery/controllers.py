@@ -26,7 +26,6 @@ class BaseAsyncController(ABC):
                 and not isclass(attr)
                 and not hasattr(BaseAsyncController, attr_name)
                 and not attr_name.startswith("_")
-                and attr_name not in dir(BaseAsyncController)
             ):
                 setattr(self, attr_name, self._wrap_route(attr))
 

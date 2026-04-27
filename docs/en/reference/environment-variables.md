@@ -32,10 +32,12 @@ DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `REDIS_URL` | Yes | - | Redis connection string |
+| `REDIS_PASSWORD` | Yes | - | Password enforced by the Docker Redis container. Must match the password embedded in `REDIS_URL`. |
 
 Example:
 ```bash
-REDIS_URL=redis://localhost:6379/0
+REDIS_PASSWORD=example-redis-password
+REDIS_URL=redis://default:${REDIS_PASSWORD}@localhost:6379/0
 ```
 
 ## Django Settings
@@ -210,7 +212,8 @@ ENVIRONMENT=local
 DATABASE_URL=postgres://postgres:example-postgres-password@localhost:5432/postgres
 
 # Redis
-REDIS_URL=redis://localhost:6379/0
+REDIS_PASSWORD=example-redis-password
+REDIS_URL=redis://default:${REDIS_PASSWORD}@localhost:6379/0
 
 # Django
 DJANGO_SECRET_KEY=your-secret-key-change-in-production

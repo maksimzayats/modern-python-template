@@ -17,13 +17,15 @@ class BaseCeleryTaskController(BaseAsyncController, ABC):
         name: str,
         handler: Callable[P, Awaitable[R]],
     ) -> Task[P, R]:
+        sync_handler = async_to_sync(handler)
+
         @wraps(handler)
         def task(*args: P.args, **kwargs: P.kwargs) -> R:
             # Celery does not run through Django's request lifecycle, so keep the
             # worker-side database connection boundary explicit for each task.
             close_old_connections()
             try:
-                return async_to_sync(handler)(*args, **kwargs)
+                return sync_handler(*args, **kwargs)
             finally:
                 close_old_connections()
 

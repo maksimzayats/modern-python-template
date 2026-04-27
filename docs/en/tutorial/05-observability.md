@@ -189,10 +189,10 @@ from fastdjango.foundation.use_cases import BaseUseCase
 
 
 class SystemHealthUseCase(BaseUseCase):
-    def check(self) -> None:
+    async def check(self) -> None:
         try:
             # Verify database connection
-            Session.objects.first()
+            await Session.objects.afirst()
         except Exception as e:
             logger.exception("Health check failed: database is not reachable")
             raise HealthCheckError from e

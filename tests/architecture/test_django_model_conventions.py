@@ -310,6 +310,7 @@ def _model_name_from_string_target(target: str, *, current_model: str) -> str:
 def _annotation_model_name_from_string(annotation: str) -> str:
     if "[" in annotation and annotation.endswith("]"):
         annotation = annotation.rsplit("[", maxsplit=1)[-1].removesuffix("]")
+        annotation = annotation.rsplit(",", maxsplit=1)[-1].strip()
         annotation = annotation.strip("\"'")
 
     return annotation.rsplit(".", maxsplit=1)[-1]

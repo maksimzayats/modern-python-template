@@ -132,9 +132,10 @@ Services can use two patterns for "not found" scenarios:
 Test business logic without HTTP:
 
 ```python
-def test_create_todo():
-    service = TodoService()
-    todo = service.create_todo(user=user, title="Test")
+@pytest.mark.anyio
+async def test_create_todo() -> None:
+    service = TodoService(_transaction_factory=DjangoTransactionFactory())
+    todo = await service.create_todo(user=user, title="Test")
     assert todo.title == "Test"
 ```
 
@@ -144,16 +145,16 @@ Same service works everywhere:
 
 ```python
 # HTTP Controller
-class TodoController:
-    def create(self, body: CreateTodoSchema) -> TodoSchema:
-        todo = self._service.create_todo(user=user, title=body.title)
+class TodoController(BaseAsyncController):
+    async def create(self, body: CreateTodoSchema) -> TodoSchema:
+        todo = await self._service.create_todo(user=user, title=body.title)
         return TodoSchema.model_validate(todo, from_attributes=True)
 
 # Celery Task
-class ImportTaskController:
-    def import_todos(self, titles: list[str]) -> None:
+class ImportTaskController(BaseCeleryTaskController):
+    async def import_todos(self, *, titles: list[str]) -> None:
         for title in titles:
-            self._service.create_todo(user=user, title=title)
+            await self._service.create_todo(user=user, title=title)
 ```
 
 ### 3. Clear Boundaries
@@ -185,12 +186,12 @@ class TodoAccessDeniedError(ApplicationError):
 Controllers map these to HTTP responses:
 
 ```python
-def handle_exception(self, exception: Exception) -> Any:
+async def handle_exception(self, exception: Exception) -> Any:
     if isinstance(exception, TodoNotFoundError):
         raise HTTPException(status_code=404, detail=str(exception))
     if isinstance(exception, TodoAccessDeniedError):
         raise HTTPException(status_code=403, detail=str(exception))
-    return super().handle_exception(exception)
+    return await super().handle_exception(exception)
 ```
 
 ## Transaction Management
@@ -265,10 +266,10 @@ Controllers can reference models in type hints for validation, but must use serv
 ```python
 from fastdjango.core.user.models import User  # For type hint only
 
-def get_user(self, request: AuthenticatedRequest) -> UserSchema:
+async def get_user(self, request: AuthenticatedRequest) -> UserSchema:
     user: User = request.state.user  # Type hint is fine
     # But operations go through service
-    return self._user_use_case.get_user_details(user.id)
+    return await self._user_use_case.get_user_details(user_id=user.id)
 ```
 
 ## Service Dependencies
@@ -286,17 +287,25 @@ class OrderService(BaseService):
     _transaction_factory: Injected[TransactionFactory]
 
     async def create_order(self, *, user_id: int, items: list[Item]) -> Order:
-        return await sync_to_async(
+        user = await self._user_use_case.get_user_by_id(user_id=user_id)
+        payment = await self._payment_service.authorize(user=user, items=items)
+        order = await sync_to_async(
             self._create_order_transactionally,
             thread_sensitive=True,
-        )(user_id=user_id, items=items)
+        )(user=user, items=items, payment=payment)
+        await self._notification_service.send_confirmation(user=user, order=order)
+        return order
 
-    def _create_order_transactionally(self, *, user_id: int, items: list[Item]) -> Order:
+    def _create_order_transactionally(
+        self,
+        *,
+        user: User,
+        items: list[Item],
+        payment: PaymentAuthorization,
+    ) -> Order:
         with self._transaction_factory(span_name="create order"):
-            user = self._user_use_case.get_user_by_id(user_id=user_id)
             order = Order.objects.create(user=user)
-            self._payment_service.charge(user, order.total)
-            self._notification_service.send_confirmation(user, order)
+            Payment.objects.create(order=order, authorization_id=payment.id)
             return order
 ```
 
