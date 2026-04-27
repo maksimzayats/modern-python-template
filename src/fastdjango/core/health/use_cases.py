@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 class SystemHealthUseCase(BaseUseCase):
     HEALTH_CHECK_ERROR: ClassVar = HealthCheckError
     UNEXPECTED_ERROR: ClassVar = Exception
+
     CELERY_PING_TIMEOUT_SECONDS: ClassVar = 5
     CELERY_RESULT_FORGET_TIMEOUT_SECONDS: ClassVar = 1
 
