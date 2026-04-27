@@ -32,18 +32,11 @@ ignore = [
     "ARG001",  # Unused function argument"
     "RUF012",  # Mutable class attributes
 ]
-"**/controllers.py" = [
-    "ARG001",  # Unused function argument: `request`
-    "ARG002",  # Unused function argument: `request`
-]
 "**/models.py" = [
     "RUF012",
 ]
 "**/factories.py" = [
     "PLR0913",
-]
-"**/settings.py" = [
-    "RUF012",  # Unused function argument: `request`
 ]
 "tests/**" = [
     "S101",  # Use of assert detected
