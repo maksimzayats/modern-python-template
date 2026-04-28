@@ -56,6 +56,12 @@ class LogfirePromptAnswers:
     logfire_environment: str = "local"
 
 
+@dataclass(frozen=True, kw_only=True)
+class GitPromptAnswers:
+    reinitialize_git_repository: bool = True
+    create_initial_commit: bool = True
+
+
 def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
     project_name = _ask_text(
         f"Project name (replace template default: {TEMPLATE_PROJECT_NAME})",
@@ -76,6 +82,7 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
     keep_docs = _ask_confirm("Keep documentation?", default=True)
     docs_site_url = _ask_docs_site_url(keep_docs=keep_docs)
     repo_url = _ask_repo_url()
+    git_answers = _ask_git_answers()
     storage_mode = _ask_storage_mode()
     storage_answers = _ask_storage_answers(storage_mode=storage_mode)
     database_mode = _ask_database_mode()
@@ -99,6 +106,8 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
         delete_wizard=delete_wizard,
         overwrite_env=overwrite_env,
         repo_url=repo_url,
+        reinitialize_git_repository=git_answers.reinitialize_git_repository,
+        create_initial_commit=git_answers.create_initial_commit,
         s3_endpoint_url=storage_answers.s3_endpoint_url,
         s3_public_endpoint_url=storage_answers.s3_public_endpoint_url,
         s3_region_name=storage_answers.s3_region_name,
@@ -245,8 +254,25 @@ def _ask_docs_site_url(*, keep_docs: bool) -> str | None:
 
 def _ask_repo_url() -> str | None:
     return _optional_text(
-        "Repository URL (optional; blank removes template repository links)",
+        "Repository URL (optional; used for docs metadata and Git origin; blank removes template repository links)",
         validate=_validate_optional_url,
+    )
+
+
+def _ask_git_answers() -> GitPromptAnswers:
+    reinitialize_git_repository = _ask_confirm(
+        "Reinitialize Git repository to remove template history and old origin?",
+        default=True,
+    )
+    if not reinitialize_git_repository:
+        return GitPromptAnswers(
+            reinitialize_git_repository=False,
+            create_initial_commit=False,
+        )
+
+    return GitPromptAnswers(
+        reinitialize_git_repository=True,
+        create_initial_commit=_ask_confirm("Create initial commit?", default=True),
     )
 
 

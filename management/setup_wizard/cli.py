@@ -10,6 +10,13 @@ from rich.panel import Panel
 from rich.table import Table
 
 from management.setup_wizard.file_operations import FilePlan
+from management.setup_wizard.git import (
+    GitAction,
+    GitPlan,
+    GitSetupResult,
+    apply_git_plan,
+    build_git_plan,
+)
 from management.setup_wizard.models import (
     DatabaseMode,
     FileOperation,
@@ -53,7 +60,8 @@ def main() -> int:
         answers=answers,
         current_package_name=current_package_name,
     )
-    _render_plan_summary(console=console, plan=plan)
+    git_plan = build_git_plan(repo_root=repo_root, answers=answers)
+    _render_plan_summary(console=console, plan=plan, git_plan=git_plan)
 
     if args.dry_run:
         console.print("[green]Dry run complete. No files were changed.[/green]")
@@ -68,7 +76,9 @@ def main() -> int:
         return 130
 
     plan.apply()
+    git_result = apply_git_plan(plan=git_plan)
     console.print("[green]Setup complete.[/green]")
+    _render_git_result(console=console, answers=answers, result=git_result)
     _render_next_steps(console=console, answers=answers)
     return 0
 
@@ -102,7 +112,7 @@ def _is_dirty_git_tree(*, repo_root: Path) -> bool:
     return bool(result.stdout.strip())
 
 
-def _render_plan_summary(*, console: Console, plan: FilePlan) -> None:
+def _render_plan_summary(*, console: Console, plan: FilePlan, git_plan: GitPlan) -> None:
     table = Table(title="Planned changes")
     table.add_column("Action")
     table.add_column("Target")
@@ -113,6 +123,13 @@ def _render_plan_summary(*, console: Console, plan: FilePlan) -> None:
             operation.kind,
             _operation_target(plan=plan, operation=operation),
             operation.detail,
+        )
+
+    for action in git_plan.actions:
+        table.add_row(
+            action.kind,
+            _git_action_target(action=action),
+            action.detail,
         )
 
     console.print(table)
@@ -128,6 +145,40 @@ def _operation_target(*, plan: FilePlan, operation: FileOperation) -> str:
         return " ".join(operation.command)
 
     return plan.relative_path(operation.path)
+
+
+def _git_action_target(*, action: GitAction) -> str:
+    return action.target
+
+
+def _render_git_result(
+    *,
+    console: Console,
+    answers: SetupAnswers,
+    result: GitSetupResult,
+) -> None:
+    if not answers.reinitialize_git_repository:
+        console.print(
+            "[yellow]Git was not reinitialized; any existing remote may still point at the template.[/yellow]",
+        )
+        return
+
+    if not result.initial_commit_failed:
+        return
+
+    if _is_missing_git_identity(result=result):
+        console.print(
+            "[yellow]Initial commit could not be created because Git identity is not configured.[/yellow]",
+        )
+    else:
+        console.print("[yellow]Initial commit failed. Generated files are staged.[/yellow]")
+
+    console.print('Next step: [bold]git commit -m "initial commit"[/bold]')
+
+
+def _is_missing_git_identity(*, result: GitSetupResult) -> bool:
+    output = f"{result.initial_commit_stdout}\n{result.initial_commit_stderr}"
+    return "Author identity unknown" in output or "unable to auto-detect email address" in output
 
 
 def _render_next_steps(*, console: Console, answers: SetupAnswers) -> None:

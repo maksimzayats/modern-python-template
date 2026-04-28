@@ -37,6 +37,8 @@ class SetupAnswers:
     overwrite_env: bool
 
     repo_url: str | None = None
+    reinitialize_git_repository: bool = True
+    create_initial_commit: bool = True
     production_api_origin: str | None = None
     frontend_origin: str | None = None
     database_url: str | None = None

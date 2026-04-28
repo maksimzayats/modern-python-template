@@ -4,6 +4,7 @@ from management.setup_wizard.models import DatabaseMode, RedisMode, StorageMode
 from management.setup_wizard.prompts import (
     _ask_database_answers,
     _ask_docs_site_url,
+    _ask_git_answers,
     _ask_redis_answers,
     _ask_storage_answers,
     _suggest_package_name,
@@ -137,4 +138,46 @@ def test_minio_ports_are_asked_with_storage_details(monkeypatch: pytest.MonkeyPa
     assert calls == [
         ("MinIO API host port", 9000),
         ("MinIO console host port", 9001),
+    ]
+
+
+def test_git_prompts_default_to_reinitialize_and_initial_commit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    values = iter((True, True))
+    calls: list[tuple[str, bool]] = []
+
+    def fake_ask_confirm(message: str, *, default: bool) -> bool:
+        calls.append((message, default))
+        return next(values)
+
+    monkeypatch.setattr(prompts, "_ask_confirm", fake_ask_confirm)
+
+    answers = _ask_git_answers()
+
+    assert answers.reinitialize_git_repository is True
+    assert answers.create_initial_commit is True
+    assert calls == [
+        ("Reinitialize Git repository to remove template history and old origin?", True),
+        ("Create initial commit?", True),
+    ]
+
+
+def test_git_prompts_skip_commit_question_when_reinitialize_is_declined(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, bool]] = []
+
+    def fake_ask_confirm(message: str, *, default: bool) -> bool:
+        calls.append((message, default))
+        return False
+
+    monkeypatch.setattr(prompts, "_ask_confirm", fake_ask_confirm)
+
+    answers = _ask_git_answers()
+
+    assert answers.reinitialize_git_repository is False
+    assert answers.create_initial_commit is False
+    assert calls == [
+        ("Reinitialize Git repository to remove template history and old origin?", True),
     ]

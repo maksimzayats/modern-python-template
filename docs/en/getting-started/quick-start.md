@@ -18,7 +18,7 @@ make setup
 ```
 
 The setup wizard renames the template, writes `.env`, rewrites the app README, and lets you choose database,
-Redis, storage, docs, public origins, and Logfire defaults.
+Redis, storage, docs, public origins, Logfire defaults, and Git reset options.
 
 ## Step 2: Install dependencies
 
