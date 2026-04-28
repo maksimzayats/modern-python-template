@@ -50,7 +50,7 @@ async def test_create_user_rejects_existing_username_or_email(
             ),
         )
 
-    user_count = await sync_to_async(User.objects.count, thread_sensitive=True)()
+    user_count = await User.objects.acount()
 
     assert user_count == 1
 
