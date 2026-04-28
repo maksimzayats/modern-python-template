@@ -310,6 +310,25 @@ def test_git_reinitialize_default_is_true_for_template_origin(
     assert _default_reinitialize_git_repository(repo_root=tmp_path) is True
 
 
+def test_template_origin_detection_normalizes_git_suffix_case(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / ".git").mkdir()
+    monkeypatch.setattr(
+        prompts,
+        "_current_origin_url",
+        _fake_origin_url("https://github.com/MaksimZayats/fastdjango.GIT/"),
+    )
+    monkeypatch.setattr(prompts, "_ask_repo_url", lambda: "https://github.com/acme/acme-api")
+    monkeypatch.setattr(prompts, "_ask_confirm", lambda *_args, **kwargs: kwargs["default"])
+
+    answers = _ask_git_answers(repo_root=tmp_path)
+
+    assert answers.reinitialize_git_repository is True
+    assert _default_reinitialize_git_repository(repo_root=tmp_path) is True
+
+
 def test_existing_repo_with_no_origin_keeps_explicit_prompt_path(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

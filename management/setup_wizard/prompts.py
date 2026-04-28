@@ -313,7 +313,9 @@ def _detect_git_checkout(*, repo_root: Path | None) -> GitCheckoutDetection:
     if browser_safe_origin_url is None:
         return GitCheckoutDetection(default_reinitialize_git_repository=False)
 
-    if browser_safe_origin_url.casefold() == TEMPLATE_REPOSITORY_URL:
+    if _normalized_repository_url(browser_safe_origin_url) == _normalized_repository_url(
+        TEMPLATE_REPOSITORY_URL,
+    ):
         return GitCheckoutDetection(default_reinitialize_git_repository=True)
 
     return GitCheckoutDetection(
@@ -348,7 +350,10 @@ def _github_browser_url_from_origin(*, origin_url: str) -> str | None:
 
 
 def _github_browser_url_from_path(*, path: str) -> str | None:
-    normalized_path = path.strip().lstrip("/").rstrip("/").removesuffix(".git")
+    normalized_path = path.strip().lstrip("/").rstrip("/")
+    if normalized_path.casefold().endswith(".git"):
+        normalized_path = normalized_path[: -len(".git")]
+
     owner_and_repo = normalized_path.split("/")
     if len(owner_and_repo) != GITHUB_REPOSITORY_PATH_PARTS:
         return None
@@ -358,6 +363,10 @@ def _github_browser_url_from_path(*, path: str) -> str | None:
         return None
 
     return f"https://github.com/{owner}/{repo}"
+
+
+def _normalized_repository_url(value: str) -> str:
+    return value.strip().rstrip("/").casefold().removesuffix(".git")
 
 
 def _current_origin_url(*, repo_root: Path) -> str | None:
