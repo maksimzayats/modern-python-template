@@ -13,9 +13,13 @@ from management.setup_wizard.text_rewrite import ProjectReferences, replace_proj
 SETUP_DEPENDENCIES = [
     "libcst>=1.8.6",
     "questionary>=2.1.1",
-    "rich>=14.2.0",
-    "ruamel.yaml>=0.18.16",
-    "tomlkit>=0.13.3",
+    "rich>=15.0.0",
+    "ruamel.yaml>=0.19.1",
+    "tomlkit>=0.14.0",
+]
+DOCS_DEPENDENCIES = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.6",
 ]
 URL_WITH_SCHEME_PARTS_LENGTH = 4
 
@@ -140,7 +144,7 @@ def _update_dependency_groups(*, document: Any, answers: SetupAnswers) -> None:
 
     groups = document["dependency-groups"]
     if answers.keep_docs:
-        groups.setdefault("docs", ["mkdocs>=1.6.1", "mkdocs-material>=9.6.0"])
+        groups.setdefault("docs", DOCS_DEPENDENCIES)
     else:
         groups.pop("docs", None)
 

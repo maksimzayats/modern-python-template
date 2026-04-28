@@ -56,7 +56,7 @@ jobs:
       - name: Set up Docker Compose
         uses: docker/setup-compose-action@v2
         with:
-          version: latest
+          version: v5.1.3
 
       - name: Build Docker image
         run: docker compose build base

@@ -8,6 +8,7 @@ from management.dependency_updater import (
     ProgressReporter,
     UpdateOptions,
     sync_pyproject_dependency_versions,
+    sync_setup_wizard_dependency_templates,
     update_container_image_versions,
     update_dependencies,
     update_github_action_versions,
@@ -43,8 +44,7 @@ def test_update_dependencies_prints_progress(
     )
 
     assert capsys.readouterr().out == (
-        "Syncing pyproject.toml dependency bounds...\n"
-        "Syncing pyproject.toml dependency bounds: done\n"
+        "Syncing dependency metadata...\nSyncing dependency metadata: done\n"
     )
 
 
@@ -153,6 +153,127 @@ def test_sync_pyproject_dependency_versions_preserves_upper_bounds(tmp_path: Pat
     )
 
 
+def test_sync_setup_wizard_dependency_templates_uses_pyproject_groups(tmp_path: Path) -> None:
+    setup_wizard_path = tmp_path / "management" / "setup_wizard"
+    setup_wizard_path.mkdir(parents=True)
+    (tmp_path / "pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            dependencies = []
+
+            [dependency-groups]
+            docs = [
+                "mkdocs>=1.6.1",
+                "mkdocs-material>=9.7.6",
+            ]
+            setup = [
+                "questionary>=2.1.1",
+                "rich>=15.0.0",
+            ]
+            """,
+        ).lstrip(),
+        encoding="utf-8",
+    )
+    config_path = setup_wizard_path / "config.py"
+    config_path.write_text(
+        textwrap.dedent(
+            """
+            SETUP_DEPENDENCIES = [
+                "questionary>=2.0.0",
+                "rich>=14.2.0",
+            ]
+            DOCS_DEPENDENCIES = [
+                "mkdocs>=1.6.1",
+                "mkdocs-material>=9.6.0",
+            ]
+            """,
+        ).lstrip(),
+        encoding="utf-8",
+    )
+
+    updates = sync_setup_wizard_dependency_templates(repo_root=tmp_path)
+
+    assert (
+        dependency_updater.DependencyUpdate(
+            old_requirement="SETUP_DEPENDENCIES: rich>=14.2.0",
+            new_requirement="SETUP_DEPENDENCIES: rich>=15.0.0",
+        )
+        in updates
+    )
+    config_text = config_path.read_text(encoding="utf-8")
+    assert '"rich>=15.0.0"' in config_text
+    assert '"mkdocs-material>=9.7.6"' in config_text
+
+
+def test_update_dependencies_dry_run_projects_template_updates_from_pyproject_plan(
+    tmp_path: Path,
+) -> None:
+    setup_wizard_path = tmp_path / "management" / "setup_wizard"
+    setup_wizard_path.mkdir(parents=True)
+    (tmp_path / "pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            dependencies = []
+
+            [dependency-groups]
+            setup = [
+                "rich>=14.2.0",
+            ]
+            """,
+        ).lstrip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "uv.lock").write_text(
+        textwrap.dedent(
+            """
+            version = 1
+
+            [[package]]
+            name = "rich"
+            version = "15.0.0"
+            """,
+        ).lstrip(),
+        encoding="utf-8",
+    )
+    config_path = setup_wizard_path / "config.py"
+    config_path.write_text(
+        textwrap.dedent(
+            """
+            SETUP_DEPENDENCIES = [
+                "rich>=14.2.0",
+            ]
+            """,
+        ).lstrip(),
+        encoding="utf-8",
+    )
+
+    summary = update_dependencies(
+        repo_root=tmp_path,
+        options=UpdateOptions(
+            dry_run=True,
+            upgrade_lock=False,
+            update_pyproject=True,
+            update_actions=False,
+            update_containers=False,
+        ),
+    )
+
+    assert summary.dependency_updates == (
+        dependency_updater.DependencyUpdate(
+            old_requirement="rich>=14.2.0",
+            new_requirement="rich>=15.0.0",
+        ),
+        dependency_updater.DependencyUpdate(
+            old_requirement="SETUP_DEPENDENCIES: rich>=14.2.0",
+            new_requirement="SETUP_DEPENDENCIES: rich>=15.0.0",
+        ),
+    )
+    assert '"rich>=14.2.0"' in (tmp_path / "pyproject.toml").read_text(encoding="utf-8")
+    assert '"rich>=14.2.0"' in config_path.read_text(encoding="utf-8")
+
+
 def test_update_github_action_versions_preserves_major_refs(tmp_path: Path) -> None:
     workflows_path = tmp_path / ".github" / "workflows"
     workflows_path.mkdir(parents=True)
@@ -167,7 +288,10 @@ def test_update_github_action_versions_preserves_major_refs(tmp_path: Path) -> N
                 steps:
                   - uses: actions/checkout@v6
                   - uses: astral-sh/setup-uv@v7
-                  - uses: docker/setup-compose-action@v1
+                  - name: Set up Docker Compose
+                    uses: docker/setup-compose-action@v1
+                    with:
+                      version: latest
             """,
         ).lstrip(),
         encoding="utf-8",
@@ -179,16 +303,19 @@ def test_update_github_action_versions_preserves_major_refs(tmp_path: Path) -> N
             "actions/checkout": "v6.0.2",
             "astral-sh/setup-uv": "v8.1.0",
             "docker/setup-compose-action": "v2.1.0",
+            "docker/compose": "v5.1.3",
         }[repository],
     )
 
     assert [(update.repository, update.old_ref, update.new_ref) for update in updates] == [
         ("astral-sh/setup-uv", "v7", "v8"),
         ("docker/setup-compose-action", "v1", "v2"),
+        ("docker/compose", "latest", "v5.1.3"),
     ]
     assert "actions/checkout@v6" in workflow_path.read_text(encoding="utf-8")
     assert "astral-sh/setup-uv@v8" in workflow_path.read_text(encoding="utf-8")
     assert "docker/setup-compose-action@v2" in workflow_path.read_text(encoding="utf-8")
+    assert "version: v5.1.3" in workflow_path.read_text(encoding="utf-8")
 
 
 def test_update_container_image_versions_updates_docker_files_and_docs(tmp_path: Path) -> None:
@@ -326,3 +453,45 @@ def test_update_container_image_versions_uses_library_namespace_for_docker_io(
     assert [(update.old_ref, update.new_ref) for update in updates] == [
         ("docker.io/python:3.14-slim-bookworm", "docker.io/python:3.14.4-slim-bookworm"),
     ]
+
+
+def test_update_container_image_versions_does_not_rewrite_longer_image_refs(
+    tmp_path: Path,
+) -> None:
+    docker_path = tmp_path / "docker"
+    docker_path.mkdir()
+    compose_path = docker_path / "docker-compose.yaml"
+    docs_path = tmp_path / "docs" / "en" / "reference"
+    docs_path.mkdir(parents=True)
+    docker_docs_path = docs_path / "docker-services.md"
+
+    compose_path.write_text(
+        textwrap.dedent(
+            """
+            services:
+              redis:
+                image: redis:latest
+              minio-client:
+                image: minio/mc
+            """,
+        ).lstrip(),
+        encoding="utf-8",
+    )
+    docker_docs_path.write_text(
+        ("Use redis:latest. Do not touch redis:latest-alpine or minio/mc-debug. Use minio/mc.\n"),
+        encoding="utf-8",
+    )
+
+    update_container_image_versions(
+        repo_root=tmp_path,
+        latest_tag_resolver=lambda repository, current_tag: {
+            ("redis", "latest"): "8.6.2",
+            ("minio/mc", None): "RELEASE.2025-08-13T08-35-41Z",
+        }[(repository, current_tag)],
+    )
+
+    updated_docs = docker_docs_path.read_text(encoding="utf-8")
+    assert "redis:8.6.2." in updated_docs
+    assert "redis:latest-alpine" in updated_docs
+    assert "minio/mc-debug" in updated_docs
+    assert "minio/mc:RELEASE.2025-08-13T08-35-41Z." in updated_docs
