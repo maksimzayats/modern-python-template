@@ -113,13 +113,15 @@ Runs:
 uv run --group setup python -m management.setup_wizard $(ARGS)
 ```
 
-- Renames the project/package
+- Renames the checkout folder to the project slug, then renames the project and Python package
 - Writes `.env` and updates committed environment examples
 - Configures SQLite, local Docker PostgreSQL, or remote PostgreSQL
 - Configures local Docker Redis or remote Redis
 - Configures local filesystem, local MinIO, or remote S3-compatible storage
 - Rewrites the README for the generated app
 - Sets optional public origins, repository metadata, ports, and Logfire defaults
+- Can preserve an existing Git repository or reinitialize Git for direct template clones
+- Can set `origin` from the repository URL when Git is reinitialized and create the initial commit
 - Can remove template docs and setup-only files
 
 ### `make update-dependencies`

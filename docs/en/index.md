@@ -17,16 +17,26 @@ quickly without losing a clear application structure:
 
 ## Start with setup
 
+Recommended: create your own repository from this template on GitHub, clone it,
+then run the wizard inside that checkout:
+
 ```bash
-git clone https://github.com/MaksimZayats/fastdjango.git my-api
-cd my-api
-# Makefile
 make setup
 ```
 
-The wizard renames the project, writes `.env`, configures database, Redis,
-storage, docs, public origins, and Logfire defaults, then prints the next
-commands for the choices you made.
+Keep the existing Git repository when prompted. The wizard will clean up the
+template files and can create the initial commit without changing your `origin`.
+
+If you clone the original template directly instead, use:
+
+```bash
+git clone https://github.com/maksimzayats/fastdjango.git && cd fastdjango && make setup
+```
+
+The wizard renames the checkout folder to the project slug, renames the project
+and Python package, writes `.env`, configures database, Redis, storage, docs,
+public origins, Logfire defaults, and Git setup for the flow you chose, then
+prints the next commands.
 
 ## Key features
 
@@ -98,5 +108,5 @@ structures.
 
 ## Getting Help
 
-- [GitHub Issues](https://github.com/MaksimZayats/fastdjango/issues) - Report bugs or request features
+- [GitHub Issues](https://github.com/maksimzayats/fastdjango/issues) - Report bugs or request features
 - [Project Structure](getting-started/project-structure.md) - Understand the codebase organization

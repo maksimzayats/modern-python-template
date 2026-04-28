@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,9 +14,16 @@ from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers
 
 PACKAGE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 DISTRIBUTION_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*[a-z0-9]$")
-TEMPLATE_PROJECT_NAME = "Fast Django"
+TEMPLATE_PROJECT_NAME = "fastdjango"
 TEMPLATE_PACKAGE_NAME = "fastdjango"
 TEMPLATE_DISTRIBUTION_NAME = "fastdjango"
+TEMPLATE_REPOSITORY_URLS = frozenset(
+    {
+        "git@github.com:maksimzayats/fastdjango",
+        "https://github.com/maksimzayats/fastdjango",
+        "ssh://git@github.com/maksimzayats/fastdjango",
+    },
+)
 MAX_PORT = 65535
 
 
@@ -56,6 +65,12 @@ class LogfirePromptAnswers:
     logfire_environment: str = "local"
 
 
+@dataclass(frozen=True, kw_only=True)
+class GitPromptAnswers:
+    reinitialize_git_repository: bool = True
+    create_initial_commit: bool = True
+
+
 def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
     project_name = _ask_text(
         f"Project name (replace template default: {TEMPLATE_PROJECT_NAME})",
@@ -69,13 +84,14 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
     )
     suggested_distribution_name = package_name.strip().replace("_", "-")
     distribution_name = _ask_text(
-        "Distribution name (pyproject package name; edit or press Enter)",
+        "Distribution name (pyproject package and checkout folder; edit or press Enter)",
         default=suggested_distribution_name,
         validate=_validate_distribution_name,
     )
     keep_docs = _ask_confirm("Keep documentation?", default=True)
     docs_site_url = _ask_docs_site_url(keep_docs=keep_docs)
     repo_url = _ask_repo_url()
+    git_answers = _ask_git_answers(repo_root=repo_root)
     storage_mode = _ask_storage_mode()
     storage_answers = _ask_storage_answers(storage_mode=storage_mode)
     database_mode = _ask_database_mode()
@@ -99,6 +115,8 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
         delete_wizard=delete_wizard,
         overwrite_env=overwrite_env,
         repo_url=repo_url,
+        reinitialize_git_repository=git_answers.reinitialize_git_repository,
+        create_initial_commit=git_answers.create_initial_commit,
         s3_endpoint_url=storage_answers.s3_endpoint_url,
         s3_public_endpoint_url=storage_answers.s3_public_endpoint_url,
         s3_region_name=storage_answers.s3_region_name,
@@ -245,9 +263,54 @@ def _ask_docs_site_url(*, keep_docs: bool) -> str | None:
 
 def _ask_repo_url() -> str | None:
     return _optional_text(
-        "Repository URL (optional; blank removes template repository links)",
-        validate=_validate_optional_url,
+        "Repository URL (HTTP(S), optional; used for docs metadata and, if Git is reinitialized, as Git origin; blank removes template repository links)",
+        validate=_validate_optional_http_url,
     )
+
+
+def _ask_git_answers(*, repo_root: Path | None = None) -> GitPromptAnswers:
+    reinitialize_git_repository = _ask_confirm(
+        "Reinitialize Git repository to remove cloned-template history and old origin?",
+        default=_default_reinitialize_git_repository(repo_root=repo_root),
+    )
+
+    return GitPromptAnswers(
+        reinitialize_git_repository=reinitialize_git_repository,
+        create_initial_commit=_ask_confirm("Create initial commit?", default=True),
+    )
+
+
+def _default_reinitialize_git_repository(*, repo_root: Path | None) -> bool:
+    if repo_root is None:
+        return True
+
+    if not (repo_root / ".git").exists():
+        return True
+
+    origin_url = _current_origin_url(repo_root=repo_root)
+    if origin_url is None:
+        return False
+
+    normalized_origin_url = origin_url.casefold().removesuffix(".git").rstrip("/")
+    return normalized_origin_url in TEMPLATE_REPOSITORY_URLS
+
+
+def _current_origin_url(*, repo_root: Path) -> str | None:
+    if not (repo_root / ".git").exists():
+        return None
+
+    git_path = shutil.which("git")
+    if git_path is None:
+        return None
+
+    result = subprocess.run(  # noqa: S603
+        [git_path, "config", "--get", "remote.origin.url"],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    return result.stdout.strip() or None
 
 
 def _ask_public_origin_answers() -> PublicOriginPromptAnswers:

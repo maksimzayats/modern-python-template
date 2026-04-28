@@ -8,17 +8,32 @@ Get the project running in minutes.
 - uv ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
 - Docker and Docker Compose for local infrastructure choices
 
-## Step 1: Clone and run setup
+## Step 1: Create your repository and run setup
+
+The cleanest flow is to create your own repository from the template on GitHub,
+clone that new repository, and run:
 
 ```bash
-git clone https://github.com/MaksimZayats/fastdjango.git my-api
-cd my-api
-# Makefile
 make setup
 ```
 
-The setup wizard renames the template, writes `.env`, rewrites the app README, and lets you choose database,
-Redis, storage, docs, public origins, and Logfire defaults.
+When the wizard asks about Git, keep the existing repository and let it create
+the initial commit. Your `origin` already points at your repository in this
+flow.
+
+If you cloned the original template directly instead, run:
+
+```bash
+git clone https://github.com/maksimzayats/fastdjango.git && cd fastdjango && make setup
+```
+
+For a direct clone, let the wizard reinitialize Git so the generated project
+does not keep the template history or `origin`.
+
+The setup wizard renames the checkout folder to the project slug, renames the
+project and Python package, writes `.env`, rewrites the app README, and lets you
+choose database, Redis, storage, docs, public origins, Logfire defaults, and Git
+setup for the flow you chose.
 
 ## Step 2: Install dependencies
 
