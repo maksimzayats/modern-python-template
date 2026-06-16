@@ -21,7 +21,7 @@ Recommended: create your own repository from this template on GitHub, clone it,
 then open the top-level `PROMPT_TEMPLATE.md` file.
 
 Replace the bracketed values, remove any removable capabilities you do not want,
-and paste the edited prompt into an LLM coding agent working in your checkout.
+then open the new repository in an LLM coding agent and paste the edited prompt.
 The prompt is the setup source of truth: capabilities removed from the prompt
 should be deleted from the generated project, not left dormant.
 

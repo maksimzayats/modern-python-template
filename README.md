@@ -17,7 +17,7 @@ interface:
 
 1. Replace the bracketed values in the prompt template.
 2. Remove any removable capability bullets you do not want.
-3. Paste the edited prompt into an LLM coding agent working in your checkout.
+3. Open the new repository in an LLM coding agent and paste the edited prompt.
 
 The agent should rename the project and Python package, write environment files,
 update docs and examples, remove omitted capabilities, refresh the lockfile, and

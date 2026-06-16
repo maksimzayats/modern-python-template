@@ -26,7 +26,7 @@ which `origin` URL to set for the generated project.
 
 ## Step 2: Customize the prompt template
 
-Open the top-level `PROMPT_TEMPLATE.md` file in your checkout. Replace the
+Open the top-level `PROMPT_TEMPLATE.md` file in your new repository. Replace the
 bracketed project values, then remove any removable capability bullets you do
 not want.
 
@@ -36,7 +36,7 @@ are mandatory for every generated project.
 
 ## Step 3: Run agent-led setup
 
-Paste the edited prompt into an LLM coding agent that can edit your checkout.
+Open the new repository in an LLM coding agent and paste the edited prompt.
 The agent should rename the project and Python package, write `.env`, update the
 app README, remove omitted capabilities, refresh the lockfile, and run checks.
 

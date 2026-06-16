@@ -1,13 +1,17 @@
 # modern-python-template Project Creation Prompt
 
-Copy the prompt below, replace bracketed values, remove any removable capability
-bullets you do not want, then paste it into an LLM coding agent that can edit
-your modern-python-template checkout.
+Use this after creating your own repository from the modern-python-template
+template and opening that new repository in an LLM coding agent.
+
+Before pasting the prompt below into the agent, replace the bracketed values and
+remove any removable capability bullets you do not want. The edited prompt is
+the setup input for your generated project.
 
 ```text
-You are an LLM coding agent working in a modern-python-template repository.
+You are an LLM coding agent working in a newly created repository that was
+created from the modern-python-template template.
 
-Repository: [absolute path to the checkout]
+Repository: [absolute path to my new repository]
 
 Generated project identity:
 - Project name: [Human-readable project name]
@@ -19,10 +23,10 @@ Generated project identity:
 - Local browser origins: [http://localhost:3000, http://localhost:8000, ...]
 
 Goal:
-Create the generated project from this template repository. Treat this prompt as
-the setup source of truth. Do not use a separate interactive setup flow. Keep
-every capability explicitly listed below and delete every removable capability
-that is not listed.
+Create the generated project in this repository. Treat my edited prompt as the
+setup source of truth. Do not use a separate interactive setup flow. Keep every
+capability explicitly listed below and delete every removable capability that is
+not listed.
 
 Mandatory modern-python-template Base:
 - Keep FastAPI delivery.
