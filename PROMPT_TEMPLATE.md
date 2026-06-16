@@ -10,9 +10,8 @@ modern-python-template GitHub repository to use as the source template.
 
 ```text
 You are an LLM coding agent working in an empty repository for my generated
-project.
+project. Assume the current working directory is that repository.
 
-Repository: [absolute path to my empty repository]
 Template source: https://github.com/maksimzayats/modern-python-template
 
 Generated project identity:
