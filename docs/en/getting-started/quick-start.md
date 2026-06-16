@@ -26,8 +26,10 @@ The edited prompt will point the agent at
 
 Copy the prompt from
 [`PROMPT_TEMPLATE.md`](https://github.com/maksimzayats/modern-python-template/blob/main/PROMPT_TEMPLATE.md).
-Replace the bracketed project values, then remove any removable capability
-bullets you do not want.
+Set the project name, update any optional bracketed values, then remove any
+removable capability bullets you do not want. By default, the agent derives
+package, distribution, Docker, docs, and display names from the project name;
+you can override those derived names in natural language.
 
 Keep the modern-python-template Base intact. FastAPI delivery, Django ORM and
 admin, dependency injection, architecture guardrails, tests, linting, and typing

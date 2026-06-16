@@ -3,10 +3,11 @@
 Use this after creating an empty repository for your project and opening that
 repository in an LLM coding agent.
 
-Before pasting the prompt below into the agent, replace the bracketed values and
-remove any removable capability bullets you do not want. The edited prompt is
-the setup input for your generated project, and it points the agent at the
-modern-python-template GitHub repository to use as the source template.
+Before pasting the prompt below into the agent, set the project name, update any
+optional bracketed values, and remove any removable capability bullets you do
+not want. The edited prompt is the setup input for your generated project, and
+it points the agent at the modern-python-template GitHub repository to use as
+the source template.
 
 ```text
 You are an LLM coding agent working in an empty repository for my generated
@@ -16,8 +17,21 @@ Template source: https://github.com/maksimzayats/modern-python-template
 
 Generated project identity:
 - Project name: [Human-readable project name]
-- Distribution name: [python-distribution-name]
-- Python package name: [python_package_name]
+
+Naming defaults:
+- Derive the Python distribution name from the project name by lowercasing it,
+  replacing spaces and underscores with hyphens, and removing characters that
+  are not valid in Python distribution names.
+- Derive the Python package/import name from the project name by lowercasing it,
+  replacing spaces and hyphens with underscores, removing characters that are
+  not valid in Python identifiers, and making sure the result is a valid Python
+  package name.
+- Derive Docker, Compose, environment, docs, and display names from the project
+  name using the conventional form for each target.
+- If I add an explicit natural-language override for any derived name, use that
+  override instead of the default derivation.
+
+Template identifiers:
 - Current template import root: modern_python_template
 - Short description: [one-sentence product description]
 - Repository URL: [https://github.com/org/repo or none]

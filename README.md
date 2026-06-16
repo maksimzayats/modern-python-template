@@ -17,7 +17,7 @@ repository as the setup interface. The prompt points your agent at the template
 source: <https://github.com/maksimzayats/modern-python-template>.
 
 1. Create and clone your empty project repository.
-2. Replace the bracketed values in the prompt template.
+2. Set the project name and update any optional bracketed values.
 3. Remove any removable capability bullets you do not want.
 4. Open your empty project repository in an LLM coding agent and paste the
    edited prompt.

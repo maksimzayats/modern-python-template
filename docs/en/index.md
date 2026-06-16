@@ -23,9 +23,9 @@ then copy the prompt from
 The prompt points your agent at
 `https://github.com/maksimzayats/modern-python-template` as the source template.
 
-Replace the bracketed values, remove any removable capabilities you do not want,
-then open your empty project repository in an LLM coding agent and paste the
-edited prompt.
+Set the project name, update any optional bracketed values, remove any
+removable capabilities you do not want, then open your empty project repository
+in an LLM coding agent and paste the edited prompt.
 The prompt is the setup source of truth: capabilities removed from the prompt
 should be deleted from the generated project, not left dormant.
 
