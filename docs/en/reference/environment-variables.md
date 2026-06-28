@@ -9,6 +9,7 @@
 | `REDIS_URL` | Yes | Redis URL used by rate limiting |
 | `ALLOWED_HOSTS` | No | Trusted host middleware values |
 | `CORS_ALLOW_ORIGINS` | No | Browser origins allowed by CORS middleware |
+| `TRUST_FORWARDED_IP_HEADER` | No | Trusts `X-Forwarded-For` for client identity; keep `false` unless the app is behind trusted proxy infrastructure |
 | `LOGFIRE_ENABLED` | No | Enables Logfire telemetry when `true` |
 | `LOGFIRE_TOKEN` | When enabled | Logfire write token |
 

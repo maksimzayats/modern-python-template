@@ -95,3 +95,36 @@ async def test_user_credential_service_returns_none_for_missing_user() -> None:
         )
         is None
     )
+
+
+@pytest.mark.anyio
+async def test_user_credential_service_returns_none_for_inactive_user() -> None:
+    password_service = PasswordService(_settings=PasswordServiceSettings())
+    service = UserCredentialService(
+        _identity_service=UserIdentityService(),
+        _password_service=password_service,
+    )
+    uow = FakeUnitOfWork(
+        _user_repository=FakeUserRepository(
+            users=[
+                User(
+                    id=1,
+                    username="inactive",
+                    email="inactive@example.com",
+                    first_name="Inactive",
+                    last_name="User",
+                    password_hash=password_service.hash_password(password=_STRONG_PASSWORD),
+                    is_active=False,
+                ),
+            ],
+        ),
+    )
+
+    assert (
+        await service.authenticate_user(
+            uow=uow,
+            username="inactive",
+            password=_STRONG_PASSWORD,
+        )
+        is None
+    )

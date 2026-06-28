@@ -33,6 +33,9 @@ class UserCredentialService(BaseService):
         if user is None:
             return None
 
+        if not user.is_active:
+            return None
+
         is_valid_password = self._password_service.verify_password(
             password=password,
             password_hash=user.password_hash,

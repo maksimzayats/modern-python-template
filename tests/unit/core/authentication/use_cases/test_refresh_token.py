@@ -125,7 +125,34 @@ async def test_refresh_token_rolls_back_when_access_token_signing_fails() -> Non
     assert uow.rolled_back is True
 
 
-def _build_user() -> User:
+@pytest.mark.anyio
+async def test_refresh_token_rolls_back_for_inactive_session_user() -> None:
+    user = _build_user(is_active=False)
+    refresh_session_service = MagicMock(spec=RefreshSessionService)
+    refresh_session_service.rotate_refresh_token = AsyncMock(
+        return_value=RefreshSessionResult(
+            refresh_token=_REFRESH_TOKEN,
+            session=_build_refresh_session(user=user),
+        ),
+    )
+    jwt_service = MagicMock(spec=JWTService)
+    uow = FakeUnitOfWork()
+    use_case = RefreshTokenUseCase(
+        _jwt_service=jwt_service,
+        _refresh_session_service=refresh_session_service,
+        _uow=uow,
+    )
+
+    with pytest.raises(RefreshTokenUseCase.INVALID_REFRESH_TOKEN_ERROR):
+        await use_case.execute(data=RefreshTokenDTO(refresh_token=_REFRESH_TOKEN))
+
+    assert uow.entered_count == 1
+    assert uow.exited_count == 1
+    assert uow.rolled_back is True
+    jwt_service.issue_access_token.assert_not_called()
+
+
+def _build_user(*, is_active: bool = True) -> User:
     return User(
         id=1,
         username="test_user",
@@ -133,6 +160,7 @@ def _build_user() -> User:
         first_name="Test",
         last_name="User",
         password_hash=_PASSWORD_HASH,
+        is_active=is_active,
     )
 
 

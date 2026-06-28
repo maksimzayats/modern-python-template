@@ -36,6 +36,8 @@ class RefreshTokenUseCase(BaseUseCase):
                 uow=uow,
                 refresh_token=data.refresh_token,
             )
+            if not rotated_session.session.user.is_active:
+                raise self.INVALID_REFRESH_TOKEN_ERROR
 
             return _build_token_result(
                 jwt_service=self._jwt_service,
