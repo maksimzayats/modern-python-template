@@ -37,6 +37,11 @@ def update_pyproject_toml(
     answers: SetupAnswers,
     old_package_name: str,
 ) -> str:
+    """Run update pyproject toml.
+
+    Returns:
+    The operation result.
+    """
     document = cast(Any, tomlkit.parse(content))
     cast(Any, document["project"])["name"] = answers.distribution_name
 
@@ -55,6 +60,11 @@ def update_pyproject_toml(
 
 
 def update_ruff_toml(content: str, *, package_name: str) -> str:
+    """Run update ruff toml.
+
+    Returns:
+    The operation result.
+    """
     document = cast(Any, tomlkit.parse(content))
     document["src"] = ["src", "management", "tests"]
     cast(Any, document["lint"]["isort"])["known-first-party"] = [package_name]
@@ -62,6 +72,11 @@ def update_ruff_toml(content: str, *, package_name: str) -> str:
 
 
 def update_prek_toml(content: str) -> str:
+    """Run update prek toml.
+
+    Returns:
+    The operation result.
+    """
     document = cast(Any, tomlkit.parse(content))
     for repo in cast(list[Any], document["repos"]):
         for hook in cast(list[Any], repo.get("hooks", [])):
@@ -77,6 +92,11 @@ def update_docker_compose_yaml(
     old_package_name: str,
     is_local_overlay: bool,
 ) -> str:
+    """Run update docker compose yaml.
+
+    Returns:
+    The operation result.
+    """
     yaml = YAML()
     yaml.preserve_quotes = True
     data = yaml.load(content)
@@ -107,6 +127,11 @@ def update_docker_compose_yaml(
 
 
 def update_mkdocs_yaml(content: str, *, answers: SetupAnswers, old_package_name: str) -> str:
+    """Run update mkdocs yaml.
+
+    Returns:
+    The operation result.
+    """
     yaml = YAML()
     yaml.preserve_quotes = True
     data = yaml.load(content)

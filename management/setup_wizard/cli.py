@@ -29,6 +29,11 @@ from management.setup_wizard.prompts import confirm_plan, prompt_for_answers
 
 
 def main() -> int:
+    """Run main.
+
+    Returns:
+    The operation result.
+    """
     args = _parse_args()
     repo_root = Path.cwd()
     console = Console()
@@ -274,5 +279,7 @@ def _docker_services(*, answers: SetupAnswers) -> list[str]:
 
 @dataclass(frozen=True, kw_only=True)
 class CheckoutRename:
+    """Define CheckoutRename."""
+
     source_path: Path
     target_path: Path

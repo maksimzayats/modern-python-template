@@ -10,12 +10,19 @@ from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers
 
 @dataclass(frozen=True, kw_only=True)
 class EnvCredentials:
+    """Define EnvCredentials."""
+
     jwt_key: str
     postgres_key: str
     redis_key: str
 
 
 def build_env_content(*, answers: SetupAnswers) -> str:
+    """Run build env content.
+
+    Returns:
+    The operation result.
+    """
     return _join_env_lines(
         lines=_build_base_env_lines(
             answers=answers,
@@ -30,6 +37,11 @@ def build_env_content(*, answers: SetupAnswers) -> str:
 
 
 def build_env_example_content(*, answers: SetupAnswers) -> str:
+    """Run build env example content.
+
+    Returns:
+    The operation result.
+    """
     return _join_env_lines(
         lines=_build_base_env_lines(
             answers=answers,
@@ -44,6 +56,11 @@ def build_env_example_content(*, answers: SetupAnswers) -> str:
 
 
 def build_test_env_example_content() -> str:
+    """Run build test env example content.
+
+    Returns:
+    The operation result.
+    """
     return _join_env_lines(
         lines=[
             "# Application",

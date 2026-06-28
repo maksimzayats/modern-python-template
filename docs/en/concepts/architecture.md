@@ -11,3 +11,5 @@ SQLAlchemy models live with their core domain modules, but they do not leak into
 `infrastructure/database` is engine/session and unit-of-work transaction wiring only. SQLAlchemy query execution stays inside core repositories; normalization, duplicate handling, token rotation decisions, and other application rules stay in core use cases and services.
 
 Public HTTP routes are registered as full paths such as `/api/v1/users/me`; route prefixes are not split across routers and handlers.
+
+Public classes, functions, methods, and constructors in application code use concise Google-style docstrings. The template keeps Ruff, WPS/flake8, mypy, strict pytest settings, and architecture tests as guardrails for these conventions.

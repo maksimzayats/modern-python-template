@@ -19,16 +19,20 @@ from fastapi_template.foundation.delivery.controllers import BaseAsyncController
 
 @dataclass(kw_only=True)
 class UserController(BaseAsyncController):
+    """Define UserController."""
+
     _jwt_auth_factory: Injected[JWTAuthFactory]
     _create_user_use_case: Injected[CreateUserUseCase]
     _get_user_by_id_use_case: Injected[GetUserByIdUseCase]
 
     def __post_init__(self) -> None:
+        """Run post init."""
         self._jwt_auth = self._jwt_auth_factory()
         self._staff_jwt_auth = self._jwt_auth_factory(require_staff=True)
         super().__post_init__()
 
     def register(self, registry: APIRouter) -> None:
+        """Run register."""
         registry.add_api_route(
             path="/api/v1/users/",
             endpoint=self.create_user,
@@ -53,17 +57,32 @@ class UserController(BaseAsyncController):
         )
 
     async def create_user(self, request_body: CreateUserRequestSchema) -> UserSchema:
+        """Run create user.
+
+        Returns:
+        The operation result.
+        """
         user = await self._create_user_use_case.execute(data=request_body)
 
         return UserSchema.model_validate(user, from_attributes=True)
 
     async def get_current_user(self, request: AuthenticatedRequest) -> UserSchema:
+        """Run get current user.
+
+        Returns:
+        The operation result.
+        """
         return UserSchema.model_validate(request.state.user, from_attributes=True)
 
     async def get_user_by_id(
         self,
         user_id: int,
     ) -> UserSchema:
+        """Run get user by id.
+
+        Returns:
+        The operation result.
+        """
         user = await self._get_user_by_id_use_case.execute(user_id=user_id)
         if user is None:
             raise HTTPException(
@@ -74,6 +93,11 @@ class UserController(BaseAsyncController):
         return UserSchema.model_validate(user, from_attributes=True)
 
     async def handle_exception(self, exception: Exception) -> Any:
+        """Run handle exception.
+
+        Returns:
+        The operation result.
+        """
         if isinstance(exception, CreateUserUseCase.WEAK_PASSWORD_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,

@@ -10,10 +10,13 @@ from management.setup_wizard.models import FileOperation
 
 @dataclass(kw_only=True)
 class FilePlan:
+    """Define FilePlan."""
+
     repo_root: Path
     operations: list[FileOperation] = field(default_factory=list)
 
     def add_write(self, path: Path, *, content: str, detail: str) -> None:
+        """Run add write."""
         existing_content = path.read_text(encoding="utf-8") if path.exists() else None
         if existing_content == content:
             return
@@ -28,6 +31,7 @@ class FilePlan:
         )
 
     def add_delete(self, path: Path, *, detail: str) -> None:
+        """Run add delete."""
         if not path.exists():
             return
 
@@ -40,6 +44,7 @@ class FilePlan:
         )
 
     def add_rename(self, source_path: Path, target_path: Path, *, detail: str) -> None:
+        """Run add rename."""
         if source_path == target_path or not source_path.exists():
             return
 
@@ -53,6 +58,7 @@ class FilePlan:
         )
 
     def add_command(self, command: tuple[str, ...], *, detail: str) -> None:
+        """Run add command."""
         self.operations.append(
             FileOperation(
                 kind="command",
@@ -63,6 +69,7 @@ class FilePlan:
         )
 
     def apply(self, *, run_commands: bool = True) -> None:
+        """Run apply."""
         for operation in self.operations:
             if operation.kind == "rename":
                 self._apply_rename(operation=operation)
@@ -74,6 +81,11 @@ class FilePlan:
                 self._apply_command(operation=operation)
 
     def relative_path(self, path: Path) -> str:
+        """Run relative path.
+
+        Returns:
+        The operation result.
+        """
         try:
             return path.relative_to(self.repo_root).as_posix()
         except ValueError:

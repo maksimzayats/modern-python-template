@@ -7,18 +7,24 @@ from typing import Literal
 
 
 class DatabaseMode(StrEnum):
+    """Define DatabaseMode."""
+
     SQLITE = "sqlite"
     DOCKER_POSTGRES = "docker-postgres"
     REMOTE_POSTGRES = "remote-postgres"
 
 
 class RedisMode(StrEnum):
+    """Define RedisMode."""
+
     DOCKER_REDIS = "docker-redis"
     REMOTE_REDIS = "remote-redis"
 
 
 @dataclass(frozen=True, kw_only=True)
 class SetupAnswers:
+    """Define SetupAnswers."""
+
     project_name: str
     package_name: str
     distribution_name: str
@@ -45,6 +51,8 @@ class SetupAnswers:
 
 @dataclass(frozen=True, kw_only=True)
 class FileOperation:
+    """Define FileOperation."""
+
     kind: Literal["write", "delete", "rename", "command"]
     path: Path
     detail: str

@@ -25,24 +25,32 @@ MAX_PORT = 65535
 
 @dataclass(frozen=True, kw_only=True)
 class DatabasePromptAnswers:
+    """Define DatabasePromptAnswers."""
+
     database_url: str | None = None
     postgres_port: int = 5432
 
 
 @dataclass(frozen=True, kw_only=True)
 class RedisPromptAnswers:
+    """Define RedisPromptAnswers."""
+
     redis_url: str | None = None
     redis_port: int = 6379
 
 
 @dataclass(frozen=True, kw_only=True)
 class PublicOriginPromptAnswers:
+    """Define PublicOriginPromptAnswers."""
+
     production_api_origin: str | None = None
     frontend_origin: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
 class LogfirePromptAnswers:
+    """Define LogfirePromptAnswers."""
+
     enable_logfire: bool = False
     logfire_token: str | None = None
     logfire_environment: str = "local"
@@ -50,6 +58,8 @@ class LogfirePromptAnswers:
 
 @dataclass(frozen=True, kw_only=True)
 class GitPromptAnswers:
+    """Define GitPromptAnswers."""
+
     repo_url: str | None = None
     reinitialize_git_repository: bool = True
     create_initial_commit: bool = True
@@ -57,6 +67,8 @@ class GitPromptAnswers:
 
 @dataclass(frozen=True, kw_only=True)
 class GitCheckoutDetection:
+    """Define GitCheckoutDetection."""
+
     inferred_repo_url: str | None = None
     prompt_for_repo_url: bool = True
     prompt_for_reinitialize_git_repository: bool = True
@@ -64,6 +76,11 @@ class GitCheckoutDetection:
 
 
 def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
+    """Run prompt for answers.
+
+    Returns:
+    The operation result.
+    """
     project_name = _ask_text(
         f"Project name (replace template default: {TEMPLATE_PROJECT_NAME})",
         validate=_validate_project_name,
@@ -118,6 +135,11 @@ def prompt_for_answers(*, repo_root: Path) -> SetupAnswers:
 
 
 def confirm_plan() -> bool:
+    """Run confirm plan.
+
+    Returns:
+    The operation result.
+    """
     return _ask_confirm("Apply these changes?", default=False)
 
 
@@ -361,7 +383,7 @@ def _ask_text(
     if value is None:
         raise KeyboardInterrupt
 
-    return value
+    return cast(str, value)
 
 
 def _optional_text(

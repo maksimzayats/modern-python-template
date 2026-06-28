@@ -16,6 +16,8 @@ FALLBACK_INIT_COMMAND = ("git", "init", "-b", INITIAL_BRANCH_NAME)
 
 @dataclass(frozen=True, kw_only=True)
 class GitAction:
+    """Define GitAction."""
+
     kind: Literal["delete", "command", "preserve", "warning"]
     target: str
     detail: str
@@ -24,6 +26,8 @@ class GitAction:
 
 @dataclass(frozen=True, kw_only=True)
 class GitPlan:
+    """Define GitPlan."""
+
     repo_root: Path
     reinitialize_git_repository: bool
     had_git_repository: bool
@@ -34,6 +38,8 @@ class GitPlan:
 
 @dataclass(frozen=True, kw_only=True)
 class GitSetupResult:
+    """Define GitSetupResult."""
+
     reinitialized: bool
     had_git_repository: bool = True
     origin_added: bool = False
@@ -44,6 +50,11 @@ class GitSetupResult:
 
 
 def build_git_plan(*, repo_root: Path, answers: SetupAnswers) -> GitPlan:
+    """Run build git plan.
+
+    Returns:
+    The operation result.
+    """
     actions: list[GitAction] = []
     has_git_repository = (repo_root / ".git").exists()
     if not answers.reinitialize_git_repository:
@@ -113,6 +124,11 @@ def build_git_plan(*, repo_root: Path, answers: SetupAnswers) -> GitPlan:
 
 
 def apply_git_plan(*, plan: GitPlan) -> GitSetupResult:
+    """Run apply git plan.
+
+    Returns:
+    The operation result.
+    """
     if not plan.reinitialize_git_repository:
         return _apply_initial_commit_plan(plan=plan, reinitialized=False, origin_added=False)
 

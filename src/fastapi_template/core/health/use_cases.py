@@ -13,12 +13,15 @@ logger = logging.getLogger(__name__)
 
 @dataclass(kw_only=True)
 class SystemHealthUseCase(BaseUseCase):
+    """Define SystemHealthUseCase."""
+
     HEALTH_CHECK_ERROR: ClassVar = HealthCheckError
     UNEXPECTED_ERROR: ClassVar = Exception
 
     _uow: Injected[UnitOfWork]
 
     async def execute(self) -> None:
+        """Run execute."""
         try:
             async with self._uow as uow:
                 await uow.health_repository.check_database()

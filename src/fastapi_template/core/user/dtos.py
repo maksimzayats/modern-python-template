@@ -5,16 +5,23 @@ from pydantic import EmailStr
 
 from fastapi_template.foundation.dtos import BaseDTO
 
+PASSWORD_MAX_LENGTH = 128
+USER_NAME_MAX_LENGTH = 150
+
 
 class CreateUserDTO(BaseDTO):
+    """Define CreateUserDTO."""
+
     email: EmailStr
-    username: Annotated[str, Len(max_length=150)]
-    first_name: Annotated[str, Len(max_length=150)]
-    last_name: Annotated[str, Len(max_length=150)]
-    password: Annotated[str, Len(max_length=128)]
+    username: Annotated[str, Len(max_length=USER_NAME_MAX_LENGTH)]
+    first_name: Annotated[str, Len(max_length=USER_NAME_MAX_LENGTH)]
+    last_name: Annotated[str, Len(max_length=USER_NAME_MAX_LENGTH)]
+    password: Annotated[str, Len(max_length=PASSWORD_MAX_LENGTH)]
 
 
 class UserDTO(BaseDTO):
+    """Define UserDTO."""
+
     id: int
     username: str
     email: str

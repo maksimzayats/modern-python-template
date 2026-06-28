@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any
+from typing import Any, cast
 
 import anyio
 from fastapi.testclient import TestClient
@@ -101,7 +101,7 @@ class TestUserFactory(ContainerBasedFactory):
         is_staff: bool,
         is_superuser: bool,
     ) -> User:
-        uow = self._container.resolve(UnitOfWork)
+        uow = cast(UnitOfWork, self._container.resolve(UnitOfWork))
         async with uow as active_uow:
             promoted_user = await active_uow.user_repository.set_access_flags(
                 user_id=user.id,

@@ -1,14 +1,44 @@
+from typing import cast
+
 import pytest
 from diwire import Container
 
 from fastapi_template.core.unit_of_work import UnitOfWork
 from fastapi_template.core.user.dtos import CreateUserDTO
+from fastapi_template.infrastructure.database.session import SQLAlchemySessionFactory
+from fastapi_template.infrastructure.database.unit_of_work import SQLAlchemyUnitOfWork
 
 _VALID_TEST_PASSWORD = "S3cure-test-password-123!"  # noqa: S105
 
 
 class TransactionFailureError(Exception):
     pass
+
+
+class FakeTransaction:
+    async def commit(self) -> None:
+        raise TransactionFailureError
+
+    async def rollback(self) -> None:
+        return None
+
+
+class FakeSession:
+    closed = False
+
+    async def begin(self) -> FakeTransaction:
+        return FakeTransaction()
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+class FakeSessionFactory:
+    def __init__(self, *, session: FakeSession) -> None:
+        self._session = session
+
+    def __call__(self) -> FakeSession:
+        return self._session
 
 
 @pytest.mark.anyio
@@ -43,6 +73,42 @@ async def test_unit_of_work_rolls_back_repository_changes(container: Container) 
         )
 
     assert persisted_user is None
+
+
+@pytest.mark.anyio
+async def test_unit_of_work_rejects_repository_access_when_inactive() -> None:
+    uow = SQLAlchemyUnitOfWork(
+        _session_factory=cast(SQLAlchemySessionFactory, FakeSessionFactory(session=FakeSession())),
+    )
+
+    with pytest.raises(RuntimeError, match="not active"):
+        _ = uow.user_repository
+
+
+@pytest.mark.anyio
+async def test_unit_of_work_rejects_exit_when_inactive() -> None:
+    uow = SQLAlchemyUnitOfWork(
+        _session_factory=cast(SQLAlchemySessionFactory, FakeSessionFactory(session=FakeSession())),
+    )
+
+    with pytest.raises(RuntimeError, match="not active"):
+        await uow.__aexit__(None, None, None)
+
+
+@pytest.mark.anyio
+async def test_unit_of_work_closes_scope_when_commit_fails() -> None:
+    session = FakeSession()
+    uow = SQLAlchemyUnitOfWork(
+        _session_factory=cast(SQLAlchemySessionFactory, FakeSessionFactory(session=session)),
+    )
+
+    await uow.__aenter__()
+    with pytest.raises(TransactionFailureError):
+        await uow.__aexit__(None, None, None)
+
+    assert session.closed is True
+    with pytest.raises(RuntimeError, match="not active"):
+        _ = uow.user_repository
 
 
 async def _create_user_then_fail(*, uow: UnitOfWork, data: CreateUserDTO) -> None:

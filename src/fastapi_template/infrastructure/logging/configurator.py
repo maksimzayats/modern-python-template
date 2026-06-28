@@ -12,6 +12,8 @@ from fastapi_template.infrastructure.logfire.configurator import LogfireSettings
 
 
 class LoggingSettings(BaseSettings):
+    """Define LoggingSettings."""
+
     model_config = SettingsConfigDict(env_prefix="LOGGING_")
 
     level: str = "INFO"
@@ -20,9 +22,12 @@ class LoggingSettings(BaseSettings):
 
 @dataclass(kw_only=True)
 class LoggingConfigurator(BaseConfigurator):
+    """Define LoggingConfigurator."""
+
     _settings: Injected[LoggingSettings]
 
     def configure(self) -> None:
+        """Run configure."""
         logging.basicConfig(
             level=self._settings.level,
             format="%(asctime)s %(levelname)s %(name)s %(message)s",

@@ -27,12 +27,15 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "flake8>=7.3,<8",
     "mypy>=2.1.0",
     "prek>=0.4.5",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-mock>=3.15.1",
     "ruff>=0.15.20",
+    "types-pyyaml>=6.0,<7",
+    "wemake-python-styleguide>=1.6,<2",
 ]
 docs = [
     "mkdocs>=1.6.1",
@@ -54,8 +57,9 @@ build-backend = "uv_build"
 python_version = "3.14"
 strict = true
 plugins = ["diwire.integrations.mypy_plugin"]
-ignore_missing_imports = true
+extra_checks = true
 local_partial_types = true
+strict_equality_for_none = true
 warn_unreachable = true
 enable_error_code = [
     "truthy-bool",
@@ -69,16 +73,15 @@ enable_error_code = [
     "deprecated",
     "exhaustive-match",
 ]
-disable_error_code = [
-    "no-any-return",
-]
 
 [tool.logfire]
 ignore_no_config = true
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-addopts = "--exitfirst -vv --cov=src --cov-report=html --cov-fail-under=80"
+addopts = "--exitfirst -vv --strict-config --strict-markers --cov=src --cov-report=term-missing:skip-covered --cov-report=html --cov-fail-under=100"
+filterwarnings = ["error"]
+xfail_strict = true
 testpaths = ["tests"]
 
 [tool.coverage.run]
@@ -87,6 +90,7 @@ source = ["src"]
 omit = [
     # Entry points
     "src/fastapi_template/entrypoints/fastapi/app.py",
+    "src/fastapi_template/entrypoints/fastapi/bootstrap.py",
     # Migration scripts
     "migrations/**",
     # Observability/telemetry (requires external services)

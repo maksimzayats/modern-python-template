@@ -11,6 +11,8 @@ from fastapi_template.foundation.services import BaseService
 
 
 class JWTServiceSettings(BaseSettings):
+    """Define JWTServiceSettings."""
+
     model_config = SettingsConfigDict(env_prefix="JWT_")
 
     secret_key: SecretStr
@@ -20,11 +22,18 @@ class JWTServiceSettings(BaseSettings):
 
     @property
     def access_token_expire(self) -> timedelta:
+        """Run access token expire.
+
+        Returns:
+        The operation result.
+        """
         return timedelta(minutes=self.access_token_expire_minutes)
 
 
 @dataclass(kw_only=True)
 class JWTService(BaseService):
+    """Define JWTService."""
+
     EXPIRED_SIGNATURE_ERROR: ClassVar = jwt.ExpiredSignatureError
     INVALID_TOKEN_ERROR: ClassVar = jwt.InvalidTokenError
 
@@ -36,6 +45,11 @@ class JWTService(BaseService):
         user_id: Any,
         **payload_kwargs: Any,
     ) -> str:
+        """Run issue access token.
+
+        Returns:
+        The operation result.
+        """
         iat = datetime.now(tz=UTC)
         payload = {
             "sub": str(user_id),
@@ -52,6 +66,11 @@ class JWTService(BaseService):
         )
 
     def decode_token(self, *, token: str) -> dict[str, Any]:
+        """Run decode token.
+
+        Returns:
+        The operation result.
+        """
         return jwt.decode(
             jwt=token,
             key=self._settings.secret_key.get_secret_value(),

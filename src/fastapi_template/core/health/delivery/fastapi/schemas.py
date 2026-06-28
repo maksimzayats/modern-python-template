@@ -4,4 +4,6 @@ from fastapi_template.foundation.delivery.fastapi.schemas import BaseFastAPISche
 
 
 class HealthCheckResponseSchema(BaseFastAPISchema):
+    """Define HealthCheckResponseSchema."""
+
     status: Literal["ok"]

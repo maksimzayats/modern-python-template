@@ -18,11 +18,25 @@ from fastapi_template.core.user.repositories import user_from_model
 
 
 class RefreshSessionRepository(ABC):
-    @abstractmethod
-    async def create(self, *, data: CreateRefreshSessionDTO) -> RefreshSession: ...
+    """Define RefreshSessionRepository."""
 
     @abstractmethod
-    async def get_by_token_hash(self, *, refresh_token_hash: str) -> RefreshSession | None: ...
+    async def create(self, *, data: CreateRefreshSessionDTO) -> RefreshSession:
+        """Create a refresh session.
+
+        Returns:
+            The created refresh session.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_by_token_hash(self, *, refresh_token_hash: str) -> RefreshSession | None:
+        """Get a refresh session by token hash.
+
+        Returns:
+            The matching refresh session, if one exists.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     async def replace_token_hash(
@@ -32,17 +46,33 @@ class RefreshSessionRepository(ABC):
         refresh_token_hash: str,
         last_used_at: datetime,
         rotation_counter: int,
-    ) -> RefreshSession | None: ...
+    ) -> RefreshSession | None:
+        """Replace the refresh token hash for a session.
+
+        Returns:
+            The updated refresh session, if one exists.
+        """
+        raise NotImplementedError
 
     @abstractmethod
-    async def revoke(self, *, session_id: uuid.UUID, revoked_at: datetime) -> None: ...
+    async def revoke(self, *, session_id: uuid.UUID, revoked_at: datetime) -> None:
+        """Revoke a refresh session."""
+        raise NotImplementedError
 
 
 class SQLAlchemyRefreshSessionRepository(RefreshSessionRepository):
+    """Define SQLAlchemyRefreshSessionRepository."""
+
     def __init__(self, *, session: AsyncSession) -> None:
+        """Initialize the instance."""
         self._session = session
 
     async def create(self, *, data: CreateRefreshSessionDTO) -> RefreshSession:
+        """Run create.
+
+        Returns:
+        The operation result.
+        """
         model = RefreshSessionModel(
             refresh_token_hash=data.refresh_token_hash,
             user_id=data.user.id,
@@ -57,12 +87,17 @@ class SQLAlchemyRefreshSessionRepository(RefreshSessionRepository):
         return refresh_session_from_model(model=model, user=data.user)
 
     async def get_by_token_hash(self, *, refresh_token_hash: str) -> RefreshSession | None:
-        result = await self._session.execute(
+        """Run get by token hash.
+
+        Returns:
+        The operation result.
+        """
+        query_result = await self._session.execute(
             select(RefreshSessionModel)
             .options(selectinload(RefreshSessionModel.user))
             .where(RefreshSessionModel.refresh_token_hash == refresh_token_hash),
         )
-        model = result.scalar_one_or_none()
+        model = query_result.scalar_one_or_none()
 
         if model is None:
             return None
@@ -77,13 +112,18 @@ class SQLAlchemyRefreshSessionRepository(RefreshSessionRepository):
         last_used_at: datetime,
         rotation_counter: int,
     ) -> RefreshSession | None:
-        result = await self._session.execute(
+        """Run replace token hash.
+
+        Returns:
+        The operation result.
+        """
+        query_result = await self._session.execute(
             select(RefreshSessionModel)
             .options(selectinload(RefreshSessionModel.user))
             .where(RefreshSessionModel.id == session_id)
             .with_for_update(),
         )
-        model = result.scalar_one_or_none()
+        model = query_result.scalar_one_or_none()
         if model is None:
             return None
 
@@ -94,12 +134,13 @@ class SQLAlchemyRefreshSessionRepository(RefreshSessionRepository):
         return refresh_session_from_model(model=model)
 
     async def revoke(self, *, session_id: uuid.UUID, revoked_at: datetime) -> None:
-        result = await self._session.execute(
+        """Run revoke."""
+        query_result = await self._session.execute(
             select(RefreshSessionModel)
             .where(RefreshSessionModel.id == session_id)
             .with_for_update(),
         )
-        model = result.scalar_one_or_none()
+        model = query_result.scalar_one_or_none()
         if model is None:
             return
 
@@ -111,6 +152,11 @@ def refresh_session_from_model(
     model: RefreshSessionModel,
     user: User | None = None,
 ) -> RefreshSession:
+    """Run refresh session from model.
+
+    Returns:
+    The operation result.
+    """
     return RefreshSession(
         id=model.id,
         refresh_token_hash=model.refresh_token_hash,

@@ -2,20 +2,20 @@ from fastapi_template.core.exceptions import ApplicationError
 
 
 class AuthenticationError(ApplicationError):
-    pass
+    """Define AuthenticationError."""
 
 
 class InvalidCredentialsError(AuthenticationError):
-    pass
+    """Define InvalidCredentialsError."""
 
 
 class RefreshTokenError(AuthenticationError):
-    pass
+    """Define RefreshTokenError."""
 
 
 class InvalidRefreshTokenError(RefreshTokenError):
-    pass
+    """Define InvalidRefreshTokenError."""
 
 
 class ExpiredRefreshTokenError(RefreshTokenError):
-    pass
+    """Define ExpiredRefreshTokenError."""

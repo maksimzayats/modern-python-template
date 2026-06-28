@@ -13,24 +13,40 @@ from fastapi_template.foundation.use_cases import BaseUseCase
 
 @dataclass(kw_only=True)
 class GetUserByIdUseCase(BaseUseCase):
+    """Define GetUserByIdUseCase."""
+
     _uow: Injected[UnitOfWork]
 
     async def execute(self, *, user_id: int) -> User | None:
+        """Run execute.
+
+        Returns:
+        The operation result.
+        """
         async with self._uow as uow:
             return await uow.user_repository.get_by_id(user_id=user_id)
 
 
 @dataclass(kw_only=True)
 class GetActiveUserByIdUseCase(BaseUseCase):
+    """Define GetActiveUserByIdUseCase."""
+
     _uow: Injected[UnitOfWork]
 
     async def execute(self, *, user_id: int) -> User | None:
+        """Run execute.
+
+        Returns:
+        The operation result.
+        """
         async with self._uow as uow:
             return await uow.user_repository.get_active_by_id(user_id=user_id)
 
 
 @dataclass(kw_only=True)
 class CreateUserUseCase(BaseUseCase):
+    """Define CreateUserUseCase."""
+
     WEAK_PASSWORD_ERROR: ClassVar = WeakPasswordError
     USER_ALREADY_EXISTS_ERROR: ClassVar = UserAlreadyExistsError
 
@@ -39,6 +55,11 @@ class CreateUserUseCase(BaseUseCase):
     _uow: Injected[UnitOfWork]
 
     async def execute(self, *, data: CreateUserDTO) -> User:
+        """Run execute.
+
+        Returns:
+        The operation result.
+        """
         normalized_data = self._identity_service.normalize_create_user_data(data=data)
         self._password_service.validate(data=normalized_data)
 
@@ -57,5 +78,5 @@ class CreateUserUseCase(BaseUseCase):
                     data=normalized_data,
                     password_hash=password_hash,
                 )
-            except self.USER_ALREADY_EXISTS_ERROR as e:
-                raise self.USER_ALREADY_EXISTS_ERROR from e
+            except self.USER_ALREADY_EXISTS_ERROR as exception:
+                raise self.USER_ALREADY_EXISTS_ERROR from exception

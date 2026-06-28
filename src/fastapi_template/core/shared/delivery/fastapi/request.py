@@ -15,6 +15,8 @@ type IPAddressTrace = tuple[str, ...]
 
 
 class RequestInfoServiceSettings(BaseSettings):
+    """Define RequestInfoServiceSettings."""
+
     ip_header: str = "x-forwarded-for"
     """Header containing the forwarded IP address trace when behind proxies."""
 
@@ -24,19 +26,31 @@ class RequestInfoServiceSettings(BaseSettings):
 
 @dataclass(kw_only=True)
 class RequestInfoService(BaseService):
+    """Define RequestInfoService."""
+
     INVALID_IP_ADDRESS_ERROR: ClassVar = ValueError
 
     _settings: Injected[RequestInfoServiceSettings]
 
     def get_user_agent(self, *, request: Request) -> str:
+        """Run get user agent.
+
+        Returns:
+        The operation result.
+        """
         return request.headers.get(self._settings.user_agent_header, "")
 
     def get_user_ip_trace(self, *, request: Request) -> str | None:
+        """Run get user ip trace.
+
+        Returns:
+        The operation result.
+        """
         header_value = request.headers.get(self._settings.ip_header)
         if header_value is None:
             return self._get_remote_address(request=request)
 
-        addresses = self._parse_ip_trace(value=header_value)
+        addresses = self._parse_ip_trace(header_value=header_value)
         if addresses:
             return ",".join(addresses)
 
@@ -60,9 +74,9 @@ class RequestInfoService(BaseService):
         logger.warning("Remote address is not a valid IP: %s", remote_address)
         return None
 
-    def _parse_ip_trace(self, *, value: str) -> IPAddressTrace:
+    def _parse_ip_trace(self, *, header_value: str) -> IPAddressTrace:
         addresses: list[str] = []
-        for raw_address in value.split(","):
+        for raw_address in header_value.split(","):
             address = raw_address.strip()
             if not address:
                 return ()

@@ -3,12 +3,12 @@ from fastapi_template.foundation.delivery.fastapi.schemas import BaseFastAPISche
 
 
 class IssueTokenRequestSchema(IssueTokenDTO, BaseFastAPISchema):
-    pass
+    """Define IssueTokenRequestSchema."""
 
 
 class RefreshTokenRequestSchema(RefreshTokenDTO, BaseFastAPISchema):
-    pass
+    """Define RefreshTokenRequestSchema."""
 
 
 class TokenResponseSchema(TokenDTO, BaseFastAPISchema):
-    pass
+    """Define TokenResponseSchema."""

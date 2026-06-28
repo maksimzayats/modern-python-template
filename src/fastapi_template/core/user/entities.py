@@ -3,6 +3,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class User:
+    """Define User."""
+
     id: int
     username: str
     email: str

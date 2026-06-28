@@ -46,6 +46,11 @@ def build_setup_plan(
     answers: SetupAnswers,
     current_package_name: str | None = None,
 ) -> FilePlan:
+    """Run build setup plan.
+
+    Returns:
+    The operation result.
+    """
     resolved_package_name = current_package_name or detect_current_package_name(repo_root=repo_root)
     plan = FilePlan(repo_root=repo_root)
 
@@ -72,6 +77,11 @@ def build_setup_plan(
 
 
 def detect_current_package_name(*, repo_root: Path) -> str:
+    """Run detect current package name.
+
+    Returns:
+    The operation result.
+    """
     pyproject_path = repo_root / "pyproject.toml"
     if pyproject_path.exists():
         package_name = _detect_package_name_from_pyproject(pyproject_path=pyproject_path)

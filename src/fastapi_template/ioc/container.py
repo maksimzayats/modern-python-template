@@ -12,6 +12,11 @@ def get_container(
     configure_logfire: bool = True,
     instrument_libraries: bool = True,
 ) -> Container:
+    """Run get container.
+
+    Returns:
+    The operation result.
+    """
     container = Container(
         missing_policy=MissingPolicy.REGISTER_RECURSIVE,
         dependency_registration_policy=DependencyRegistrationPolicy.REGISTER_RECURSIVE,

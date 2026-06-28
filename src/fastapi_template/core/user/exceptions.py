@@ -2,12 +2,12 @@ from fastapi_template.core.exceptions import ApplicationError
 
 
 class UserError(ApplicationError):
-    pass
+    """Define UserError."""
 
 
 class WeakPasswordError(UserError):
-    pass
+    """Define WeakPasswordError."""
 
 
 class UserAlreadyExistsError(UserError):
-    pass
+    """Define UserAlreadyExistsError."""

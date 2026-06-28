@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass(kw_only=True)
 class IPThrottlerFactory(BaseFactory):
+    """Define IPThrottlerFactory."""
+
     _throttler_factory: Injected[AsyncThrottlerFactory]
     _request_info_service: Injected[RequestInfoService]
 
@@ -28,6 +30,11 @@ class IPThrottlerFactory(BaseFactory):
         using: RateLimiterType = RateLimiterType.TOKEN_BUCKET,
         cost: int = 1,
     ) -> Callable[[Request], Awaitable[None]]:
+        """Run call.
+
+        Returns:
+        The operation result.
+        """
         throttler = self._throttler_factory(
             quota=quota,
             using=using,
@@ -42,13 +49,16 @@ class IPThrottlerFactory(BaseFactory):
 
 @dataclass(kw_only=True)
 class BaseThrottler(ABC):
+    """Define BaseThrottler."""
+
     _throttler: Throttled
     _cost: int = 1
 
     async def __call__(self, request: Request) -> None:
+        """Run call."""
         key = self._build_key(request=request)
-        result = await self._throttler.limit(key=key, cost=self._cost)
-        if result.limited:
+        limit_result = await self._throttler.limit(key=key, cost=self._cost)
+        if limit_result.limited:
             logger.debug("Request with key %s was throttled", key)
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -63,6 +73,8 @@ class BaseThrottler(ABC):
 
 @dataclass(kw_only=True)
 class IPThrottler(BaseThrottler):
+    """Define IPThrottler."""
+
     _request_info_service: Injected[RequestInfoService]
 
     def _build_key(self, request: Request) -> str:

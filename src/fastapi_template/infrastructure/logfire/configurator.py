@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 
-import logfire
+import logfire as logfire_client
 from diwire import Injected
 from logfire import ScrubbingOptions
 from pydantic import SecretStr
@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class LogfireSettings(BaseSettings):
+    """Define LogfireSettings."""
+
     model_config = SettingsConfigDict(env_prefix="LOGFIRE_")
 
     enabled: bool = False
@@ -24,20 +26,28 @@ class LogfireSettings(BaseSettings):
 
     @property
     def is_enabled(self) -> bool:
+        """Run is enabled.
+
+        Returns:
+        The operation result.
+        """
         return self.enabled and self.token is not None
 
 
 @dataclass(kw_only=True)
 class LogfireConfigurator(BaseConfigurator):
+    """Define LogfireConfigurator."""
+
     _logfire_settings: Injected[LogfireSettings]
 
     def configure(self) -> None:
+        """Run configure."""
         token = self._logfire_settings.token
         if not self._logfire_settings.is_enabled or token is None:
             logger.debug("Logfire is disabled; skipping configuration")
             return
 
-        logfire.configure(
+        logfire_client.configure(
             service_name=self._logfire_settings.service_name,
             service_version=self._logfire_settings.service_version,
             environment=self._logfire_settings.environment,

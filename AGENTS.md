@@ -9,6 +9,8 @@
 - Prefer the smallest readable fix that matches the current codebase.
 - Do not commit, push, reset, or revert unless explicitly asked.
 - Use `prek` through `make format` and `make lint` for checks.
+- Public classes, functions, methods, and constructors in `src/` and `management/`
+  need concise Google-style docstrings.
 - Validate changes before the final response and report exact checks.
 
 ## Project Shape
@@ -67,7 +69,10 @@
 - Do not invent local `Protocol` types when a concrete project type or core ABC exists.
 - Use casts only at real third-party or protocol typing boundaries.
 - Add comments only for non-obvious behavior.
+- Keep Ruff, wemake-python-styleguide, mypy, and pytest strictness passing.
 - Tests should cover behavior or architectural contracts, not framework internals.
+- Coverage must remain at 100% for counted source files; omit only genuinely
+  configuration-only/import-only modules.
 - Keep docs short, current, and user-friendly.
 
 ## Commands
@@ -77,7 +82,7 @@
 - Run migrations: `make migrate`
 - Run app: `make dev`
 - Format: `make format`
-- Lint/type check: `make lint`
-- Test with coverage: `make test`
+- Lint/type check: `make lint` (Ruff, WPS/flake8, mypy, and repository checks)
+- Test with coverage: `make test` (100% coverage threshold)
 - Test without coverage: `uv run pytest tests/ --no-cov`
 - Docs: `make docs` / `make docs-build`

@@ -14,6 +14,8 @@ from fastapi_template.infrastructure.throttled.throttler import AsyncThrottlerFa
 
 @dataclass(kw_only=True)
 class UserThrottlerFactory(BaseFactory):
+    """Define UserThrottlerFactory."""
+
     _throttler_factory: Injected[AsyncThrottlerFactory]
 
     def __call__(
@@ -22,6 +24,11 @@ class UserThrottlerFactory(BaseFactory):
         using: RateLimiterType = RateLimiterType.TOKEN_BUCKET,
         cost: int = 1,
     ) -> Callable[[Request], Awaitable[None]]:
+        """Run call.
+
+        Returns:
+        The operation result.
+        """
         throttler = self._throttler_factory(
             quota=quota,
             using=using,
@@ -35,6 +42,8 @@ class UserThrottlerFactory(BaseFactory):
 
 @dataclass(kw_only=True)
 class UserThrottler(BaseThrottler):
+    """Define UserThrottler."""
+
     def _build_key(self, request: Any) -> str:
         request = cast(AuthenticatedRequest, request)
         user_id = request.state.user.id

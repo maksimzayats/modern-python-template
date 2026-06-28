@@ -28,6 +28,7 @@ class UnexpectedRepositoryAccessError(Exception):
 @dataclass
 class FakeRefreshSessionRepository(RefreshSessionRepository):
     session: RefreshSession | None
+    replace_returns_none: bool = False
     replaced_session_id: uuid.UUID | None = None
     replaced_hash: str | None = None
     replaced_rotation_counter: int | None = None
@@ -61,7 +62,7 @@ class FakeRefreshSessionRepository(RefreshSessionRepository):
         self.replaced_session_id = session_id
         self.replaced_hash = refresh_token_hash
         self.replaced_rotation_counter = rotation_counter
-        if self.session is None:
+        if self.replace_returns_none or self.session is None:
             return None
 
         self.session = _build_session(
@@ -138,6 +139,33 @@ async def test_rotate_refresh_token_replaces_stored_hash() -> None:
 
 
 @pytest.mark.anyio
+async def test_rotate_refresh_token_rejects_missing_session() -> None:
+    repository = FakeRefreshSessionRepository(session=None)
+    uow = FakeUnitOfWork(_refresh_session_repository=repository)
+    service = _build_service()
+
+    with pytest.raises(RefreshSessionService.INVALID_REFRESH_TOKEN_ERROR):
+        await service.rotate_refresh_token(
+            uow=uow,
+            refresh_token=_OLD_REFRESH_TOKEN,
+        )
+
+
+@pytest.mark.anyio
+async def test_rotate_refresh_token_rejects_failed_token_replacement() -> None:
+    session = _build_session()
+    repository = FakeRefreshSessionRepository(session=session, replace_returns_none=True)
+    uow = FakeUnitOfWork(_refresh_session_repository=repository)
+    service = _build_service()
+
+    with pytest.raises(RefreshSessionService.INVALID_REFRESH_TOKEN_ERROR):
+        await service.rotate_refresh_token(
+            uow=uow,
+            refresh_token=_OLD_REFRESH_TOKEN,
+        )
+
+
+@pytest.mark.anyio
 async def test_create_refresh_session_uses_active_unit_of_work() -> None:
     repository = FakeRefreshSessionRepository(session=None)
     uow = FakeUnitOfWork(_refresh_session_repository=repository)
@@ -176,6 +204,21 @@ async def test_revoke_refresh_token_marks_matching_session_revoked() -> None:
 
 
 @pytest.mark.anyio
+async def test_revoke_refresh_token_rejects_session_for_another_user() -> None:
+    session = _build_session()
+    repository = FakeRefreshSessionRepository(session=session)
+    uow = FakeUnitOfWork(_refresh_session_repository=repository)
+    service = _build_service()
+
+    with pytest.raises(RefreshSessionService.INVALID_REFRESH_TOKEN_ERROR):
+        await service.revoke_refresh_token(
+            uow=uow,
+            refresh_token=_OLD_REFRESH_TOKEN,
+            user=_build_user(user_id=2),
+        )
+
+
+@pytest.mark.anyio
 async def test_refresh_token_rejects_expired_sessions() -> None:
     repository = FakeRefreshSessionRepository(
         session=_build_session(expires_at=datetime.now(tz=UTC) - timedelta(seconds=1)),
@@ -194,9 +237,9 @@ def _build_service() -> RefreshSessionService:
     return RefreshSessionService(_settings=RefreshSessionServiceSettings())
 
 
-def _build_user() -> User:
+def _build_user(*, user_id: int = 1) -> User:
     return User(
-        id=1,
+        id=user_id,
         username="test_user",
         email="test@example.com",
         first_name="Test",

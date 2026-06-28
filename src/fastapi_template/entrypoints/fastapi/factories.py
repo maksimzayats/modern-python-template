@@ -1,5 +1,3 @@
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from diwire import Injected
@@ -15,16 +13,19 @@ from fastapi_template.core.authentication.delivery.fastapi.controllers import (
 from fastapi_template.core.health.delivery.fastapi.controllers import HealthController
 from fastapi_template.core.user.delivery.fastapi.controllers import UserController
 from fastapi_template.foundation.factories import BaseFactory
-from fastapi_template.infrastructure.anyio.configurator import AnyIOConfigurator
 from fastapi_template.infrastructure.logfire.instrumentor import OpenTelemetryInstrumentor
 from fastapi_template.infrastructure.shared import ApplicationSettings, Environment
 
 
 class FastAPISettings(BaseSettings):
+    """Define FastAPISettings."""
+
     allowed_hosts: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
 
 
 class CORSSettings(BaseSettings):
+    """Define CORSSettings."""
+
     model_config = SettingsConfigDict(env_prefix="CORS_")
 
     allow_credentials: bool = True
@@ -34,23 +35,13 @@ class CORSSettings(BaseSettings):
 
 
 @dataclass(kw_only=True)
-class Lifespan:
-    _anyio_configurator: Injected[AnyIOConfigurator]
-
-    @asynccontextmanager
-    async def __call__(self, _app: FastAPI) -> AsyncIterator[None]:
-        self._anyio_configurator.configure()
-
-        yield
-
-
-@dataclass(kw_only=True)
 class FastAPIFactory(BaseFactory):
+    """Define FastAPIFactory."""
+
     _application_settings: Injected[ApplicationSettings]
     _fastapi_settings: Injected[FastAPISettings]
     _cors_settings: Injected[CORSSettings]
 
-    _lifespan: Injected[Lifespan]
     _telemetry_instrumentor: Injected[OpenTelemetryInstrumentor]
 
     _health_controller: Injected[HealthController]
@@ -63,13 +54,17 @@ class FastAPIFactory(BaseFactory):
         add_trusted_hosts_middleware: bool = True,
         add_cors_middleware: bool = True,
     ) -> FastAPI:
-        docs_url = (
-            "/docs" if self._application_settings.environment != Environment.PRODUCTION else None
-        )
+        """Run call.
+
+        Returns:
+        The operation result.
+        """
+        docs_url: str | None = None
+        if self._application_settings.environment is not Environment.PRODUCTION:
+            docs_url = "/docs"
 
         app = FastAPI(
             title="API",
-            lifespan=self._lifespan,
             docs_url=docs_url,
             redoc_url=None,
         )

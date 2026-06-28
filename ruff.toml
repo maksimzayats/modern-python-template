@@ -16,18 +16,13 @@ unfixable = ["T201"]
 ignore = [
     "D100",
     "D104",
-    "D103",
-    "D101",
     "ANN401",
     "E501",
     "TC002",
     "TC006",
-    "D107",
-    "D102",
     "TC001",
     "TC003",
     "D106",
-    "D105",
     "EXE002",
     "FIX002",
 ]
@@ -40,6 +35,11 @@ ignore = [
     "ANN201",  # Missing return type annotation for public function
     "ANN001",  # Missing type annotation for function argument
     "ARG001",  # Unused function argument"
+    "D101",  # Migration scripts do not expose public application APIs
+    "D102",  # Migration scripts do not expose public application APIs
+    "D103",  # Migration scripts do not expose public application APIs
+    "D105",  # Migration scripts do not expose public application APIs
+    "D107",  # Migration scripts do not expose public application APIs
     "RUF012",  # Mutable class attributes
 ]
 "**/models.py" = [
@@ -50,6 +50,11 @@ ignore = [
 ]
 "tests/**" = [
     "S101",  # Use of assert detected
+    "D101",  # Tests do not need public class docstrings
+    "D102",  # Tests do not need public method docstrings
+    "D103",  # Tests do not need public function docstrings
+    "D105",  # Tests do not need magic method docstrings
+    "D107",  # Tests do not need __init__ docstrings
     "PT003",
     "ARG001",
     "ARG002",

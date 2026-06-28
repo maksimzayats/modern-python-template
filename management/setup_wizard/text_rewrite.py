@@ -7,6 +7,8 @@ from urllib.parse import urlsplit
 
 @dataclass(frozen=True, kw_only=True)
 class ProjectReferences:
+    """Define ProjectReferences."""
+
     old_package_name: str
     new_package_name: str
     project_name: str
@@ -15,6 +17,11 @@ class ProjectReferences:
 
 
 def replace_project_references(text: str, *, references: ProjectReferences) -> str:
+    """Run replace project references.
+
+    Returns:
+    The operation result.
+    """
     old_package_name = references.old_package_name
     new_package_name = references.new_package_name
     project_name = references.project_name

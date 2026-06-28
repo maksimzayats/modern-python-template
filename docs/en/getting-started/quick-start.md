@@ -38,3 +38,6 @@ Run checks:
 make lint
 make test
 ```
+
+`make lint` runs Ruff, wemake-python-styleguide, mypy, and repository checks.
+`make test` enforces 100% coverage for counted source files.

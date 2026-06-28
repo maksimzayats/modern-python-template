@@ -14,6 +14,8 @@ from fastapi_template.foundation.factories import BaseFactory
 
 
 class DatabaseSettings(BaseSettings):
+    """Define DatabaseSettings."""
+
     model_config = SettingsConfigDict(env_prefix="DATABASE_")
 
     url: SecretStr = SecretStr("sqlite+aiosqlite:///db.sqlite3")
@@ -21,27 +23,39 @@ class DatabaseSettings(BaseSettings):
 
     @property
     def async_url(self) -> str:
-        value = self.url.get_secret_value()
-        if value.startswith("postgres://"):
-            return value.replace("postgres://", "postgresql+psycopg://", 1)
+        """Run async url.
 
-        if value.startswith("postgresql://"):
-            return value.replace("postgresql://", "postgresql+psycopg://", 1)
+        Returns:
+        The operation result.
+        """
+        raw_url = self.url.get_secret_value()
+        if raw_url.startswith("postgres://"):
+            return raw_url.replace("postgres://", "postgresql+psycopg://", 1)
 
-        if value.startswith("sqlite:///"):
-            return value.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
+        if raw_url.startswith("postgresql://"):
+            return raw_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
-        return value
+        if raw_url.startswith("sqlite:///"):
+            return raw_url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
+
+        return raw_url
 
 
 @dataclass(kw_only=True)
 class SQLAlchemySessionFactory(BaseFactory):
+    """Define SQLAlchemySessionFactory."""
+
     _database_settings: Injected[DatabaseSettings]
 
     _engine: AsyncEngine | None = field(default=None, init=False)
     _session_factory: async_sessionmaker[AsyncSession] | None = field(default=None, init=False)
 
     def __call__(self) -> AsyncSession:
+        """Run call.
+
+        Returns:
+        The operation result.
+        """
         if self._session_factory is None:
             self._engine = create_async_engine(
                 self._database_settings.async_url,
@@ -54,3 +68,12 @@ class SQLAlchemySessionFactory(BaseFactory):
             )
 
         return self._session_factory()
+
+    async def dispose(self) -> None:
+        """Dispose the cached SQLAlchemy engine."""
+        if self._engine is None:
+            return
+
+        await self._engine.dispose()
+        self._engine = None
+        self._session_factory = None

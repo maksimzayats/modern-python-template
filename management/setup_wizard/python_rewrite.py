@@ -12,6 +12,11 @@ def rewrite_python_imports(
     old_package_name: str,
     new_package_name: str,
 ) -> str:
+    """Run rewrite python imports.
+
+    Returns:
+    The operation result.
+    """
     if old_package_name == new_package_name:
         return source
 
@@ -28,7 +33,10 @@ def rewrite_python_imports(
 
 
 class PackageImportTransformer(cst.CSTTransformer):
+    """Define PackageImportTransformer."""
+
     def __init__(self, *, old_package_name: str, new_package_name: str) -> None:
+        """Initialize the instance."""
         self._old_package_name = old_package_name
         self._new_package_name = new_package_name
 
@@ -38,6 +46,11 @@ class PackageImportTransformer(cst.CSTTransformer):
         _original_node: cst.ImportAlias,
         updated_node: cst.ImportAlias,
     ) -> cst.ImportAlias:
+        """Run leave ImportAlias.
+
+        Returns:
+        The operation result.
+        """
         return updated_node.with_changes(name=self._rename_module_expression(updated_node.name))
 
     @override
@@ -46,6 +59,11 @@ class PackageImportTransformer(cst.CSTTransformer):
         _original_node: cst.ImportFrom,
         updated_node: cst.ImportFrom,
     ) -> cst.ImportFrom:
+        """Run leave ImportFrom.
+
+        Returns:
+        The operation result.
+        """
         if updated_node.module is None:
             return updated_node
 

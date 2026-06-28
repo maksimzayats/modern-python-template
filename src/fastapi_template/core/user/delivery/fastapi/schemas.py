@@ -3,8 +3,8 @@ from fastapi_template.foundation.delivery.fastapi.schemas import BaseFastAPISche
 
 
 class CreateUserRequestSchema(CreateUserDTO, BaseFastAPISchema):
-    pass
+    """Define CreateUserRequestSchema."""
 
 
 class UserSchema(UserDTO, BaseFastAPISchema):
-    pass
+    """Define UserSchema."""

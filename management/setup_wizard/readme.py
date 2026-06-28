@@ -8,6 +8,11 @@ TEMPLATE_URL = "https://github.com/maksimzayats/fastapi-template"
 
 
 def build_project_readme(*, answers: SetupAnswers) -> str:
+    """Run build project readme.
+
+    Returns:
+    The operation result.
+    """
     sections = [
         f"# {answers.project_name}",
         "",
@@ -100,8 +105,8 @@ def _commands_section(*, answers: SetupAnswers) -> list[str]:
         "| --- | --- |",
         "| `make dev` | Run the FastAPI development server |",
         "| `make migrate` | Apply Alembic migrations |",
-        "| `make test` | Run the test suite |",
-        "| `make lint` | Run formatting, lint, and type checks |",
+        "| `make test` | Run the test suite with a 100% coverage threshold |",
+        "| `make lint` | Run Ruff, WPS/flake8, mypy, and repository checks |",
     ]
     if answers.keep_docs:
         sections.append("| `make docs` | Serve project documentation |")

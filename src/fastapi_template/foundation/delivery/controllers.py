@@ -2,25 +2,29 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import wraps
-from inspect import isclass, iscoroutinefunction
+from inspect import getmembers, isclass, iscoroutinefunction
 from typing import Any
 
 
 @dataclass(kw_only=True)
 class BaseAsyncController(ABC):
+    """Define BaseAsyncController."""
+
     def __post_init__(self) -> None:
+        """Run post init."""
         self._wrap_methods()
 
     @abstractmethod
-    def register(self, registry: Any) -> None: ...
+    def register(self, registry: Any) -> None:
+        """Register routes on the delivery registry."""
+        raise NotImplementedError
 
     async def handle_exception(self, exception: Exception) -> Any:
+        """Run handle exception."""
         raise exception
 
     def _wrap_methods(self) -> None:
-        for attr_name in dir(self):
-            attr = getattr(self, attr_name)
-
+        for attr_name, attr in getmembers(self):
             if (
                 callable(attr)
                 and not isclass(attr)
@@ -40,9 +44,14 @@ class BaseAsyncController(ABC):
 
         @wraps(method)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            """Run wrapper.
+
+            Returns:
+            The operation result.
+            """
             try:
                 return await method(*args, **kwargs)
-            except Exception as e:  # noqa: BLE001
-                return await self.handle_exception(e)
+            except Exception as exception:  # noqa: BLE001
+                return await self.handle_exception(exception)
 
         return wrapper

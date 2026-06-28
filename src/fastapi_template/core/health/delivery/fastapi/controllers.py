@@ -12,9 +12,12 @@ from fastapi_template.foundation.delivery.controllers import BaseAsyncController
 
 @dataclass(kw_only=True)
 class HealthController(BaseAsyncController):
+    """Define HealthController."""
+
     _system_health_use_case: Injected[SystemHealthUseCase]
 
     def register(self, registry: APIRouter) -> None:
+        """Run register."""
         registry.add_api_route(
             path="/api/v1/health",
             endpoint=self.health_check,
@@ -27,17 +30,23 @@ class HealthController(BaseAsyncController):
         )
 
     async def health_check(self) -> HealthCheckResponseSchema:
+        """Run health check.
+
+        Returns:
+        The operation result.
+        """
         try:
             await self._system_health_use_case.execute()
-        except SystemHealthUseCase.HEALTH_CHECK_ERROR as e:
+        except SystemHealthUseCase.HEALTH_CHECK_ERROR as exception:
             raise HTTPException(
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
                 detail="Service is unavailable",
-            ) from e
+            ) from exception
 
         return HealthCheckResponseSchema(status="ok")
 
     async def health_check_websocket(self, websocket: WebSocket) -> None:
+        """Run health check websocket."""
         await websocket.accept()
 
         try:

@@ -11,6 +11,8 @@ from fastapi_template.infrastructure.logfire.configurator import LogfireSettings
 
 
 class InstrumentorSettings(BaseSettings):
+    """Define InstrumentorSettings."""
+
     model_config = SettingsConfigDict(env_prefix="INSTRUMENTOR_")
 
     fastapi_excluded_urls: list[str] = Field(
@@ -20,10 +22,13 @@ class InstrumentorSettings(BaseSettings):
 
 @dataclass(kw_only=True)
 class OpenTelemetryInstrumentor:
+    """Define OpenTelemetryInstrumentor."""
+
     _instrumentor_settings: Injected[InstrumentorSettings]
     _logfire_settings: Injected[LogfireSettings]
 
     def instrument_libraries(self) -> None:
+        """Run instrument libraries."""
         if not self._logfire_settings.is_enabled:
             return
 
@@ -40,6 +45,7 @@ class OpenTelemetryInstrumentor:
         logfire.instrument_pydantic()
 
     def instrument_fastapi(self, app: FastAPI) -> None:
+        """Run instrument fastapi."""
         if not self._logfire_settings.is_enabled:
             return
 

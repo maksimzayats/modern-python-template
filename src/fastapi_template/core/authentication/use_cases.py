@@ -23,6 +23,8 @@ from fastapi_template.foundation.use_cases import BaseUseCase
 
 @dataclass(kw_only=True)
 class IssueTokenUseCase(BaseUseCase):
+    """Define IssueTokenUseCase."""
+
     INVALID_CREDENTIALS_ERROR: ClassVar = InvalidCredentialsError
 
     _jwt_service: Injected[JWTService]
@@ -36,6 +38,11 @@ class IssueTokenUseCase(BaseUseCase):
         data: IssueTokenDTO,
         context: TokenRequestContextDTO,
     ) -> TokenDTO:
+        """Run execute.
+
+        Returns:
+        The operation result.
+        """
         async with self._uow as uow:
             user = await self._user_credential_service.authenticate_user(
                 uow=uow,
@@ -61,6 +68,8 @@ class IssueTokenUseCase(BaseUseCase):
 
 @dataclass(kw_only=True)
 class RefreshTokenUseCase(BaseUseCase):
+    """Define RefreshTokenUseCase."""
+
     INVALID_REFRESH_TOKEN_ERROR: ClassVar = RefreshSessionService.INVALID_REFRESH_TOKEN_ERROR
     EXPIRED_REFRESH_TOKEN_ERROR: ClassVar = RefreshSessionService.EXPIRED_REFRESH_TOKEN_ERROR
     REFRESH_TOKEN_ERROR: ClassVar = RefreshTokenError
@@ -70,6 +79,11 @@ class RefreshTokenUseCase(BaseUseCase):
     _uow: Injected[UnitOfWork]
 
     async def execute(self, *, data: RefreshTokenDTO) -> TokenDTO:
+        """Run execute.
+
+        Returns:
+        The operation result.
+        """
         async with self._uow as uow:
             rotated_session = await self._refresh_session_service.rotate_refresh_token(
                 uow=uow,
@@ -85,6 +99,8 @@ class RefreshTokenUseCase(BaseUseCase):
 
 @dataclass(kw_only=True)
 class RevokeTokenUseCase(BaseUseCase):
+    """Define RevokeTokenUseCase."""
+
     INVALID_REFRESH_TOKEN_ERROR: ClassVar = RefreshSessionService.INVALID_REFRESH_TOKEN_ERROR
     EXPIRED_REFRESH_TOKEN_ERROR: ClassVar = RefreshSessionService.EXPIRED_REFRESH_TOKEN_ERROR
     REFRESH_TOKEN_ERROR: ClassVar = RefreshTokenError
@@ -93,6 +109,7 @@ class RevokeTokenUseCase(BaseUseCase):
     _uow: Injected[UnitOfWork]
 
     async def execute(self, *, data: RefreshTokenDTO, user: User) -> None:
+        """Run execute."""
         async with self._uow as uow:
             await self._refresh_session_service.revoke_refresh_token(
                 uow=uow,

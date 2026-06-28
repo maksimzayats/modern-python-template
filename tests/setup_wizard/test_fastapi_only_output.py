@@ -1,6 +1,12 @@
+import tomllib
 from textwrap import dedent
 
-from management.setup_wizard.config import update_docker_compose_yaml
+from management.setup_wizard.config import (
+    update_docker_compose_yaml,
+    update_prek_toml,
+    update_pyproject_toml,
+    update_ruff_toml,
+)
 from management.setup_wizard.env import build_env_example_content
 from management.setup_wizard.models import DatabaseMode, RedisMode, SetupAnswers
 
@@ -38,6 +44,54 @@ def test_compose_rewrite_prunes_removed_services() -> None:
     assert LEGACY_CLOUD_ENV_PREFIX not in content
     assert "postgres:" in content
     assert "redis:" in content
+
+
+def test_generated_pyproject_keeps_strict_quality_defaults() -> None:
+    content = update_pyproject_toml(
+        _pyproject_toml(),
+        answers=_answers(),
+        old_package_name="fastapi_template",
+    )
+    document = tomllib.loads(content)
+
+    dev_dependencies = document["dependency-groups"]["dev"]
+    assert "wemake-python-styleguide>=1.6,<2" in dev_dependencies
+    assert "flake8>=7.3,<8" in dev_dependencies
+    assert document["tool"]["mypy"]["extra_checks"] is True
+    assert document["tool"]["mypy"]["strict_equality_for_none"] is True
+    assert "ignore_missing_imports" not in document["tool"]["mypy"]
+    assert "--cov-fail-under=100" in document["tool"]["pytest"]["ini_options"]["addopts"]
+    assert (
+        "src/example_api/entrypoints/fastapi/bootstrap.py"
+        in document["tool"]["coverage"]["run"]["omit"]
+    )
+
+
+def test_generated_ruff_config_requires_public_code_docstrings() -> None:
+    content = update_ruff_toml(_ruff_toml(), package_name="example_api")
+    document = tomllib.loads(content)
+
+    assert document["lint"]["isort"]["known-first-party"] == ["example_api"]
+    assert "D101" not in document["lint"]["ignore"]
+    assert "D102" not in document["lint"]["ignore"]
+    assert "D103" not in document["lint"]["ignore"]
+    assert "D105" not in document["lint"]["ignore"]
+    assert "D107" not in document["lint"]["ignore"]
+    assert "D103" in document["lint"]["per-file-ignores"]["tests/**"]
+
+
+def test_generated_prek_config_runs_wemake_styleguide() -> None:
+    content = update_prek_toml(_prek_toml())
+    document = tomllib.loads(content)
+    hooks = {
+        hook["name"]: hook
+        for repo in document["repos"]
+        for hook in repo.get("hooks", [])
+        if "name" in hook
+    }
+
+    assert hooks["wemake-python-styleguide"]["entry"] == "uv run flake8 src management"
+    assert hooks["wemake-python-styleguide"]["pass_filenames"] is False
 
 
 def _answers() -> SetupAnswers:
@@ -104,3 +158,68 @@ def _legacy_compose() -> str:
         content = content.replace(placeholder, value)
 
     return content
+
+
+def _pyproject_toml() -> str:
+    return dedent(
+        """
+        [project]
+        name = "fastapi-template"
+
+        [dependency-groups]
+        dev = [
+            "flake8>=7.3,<8",
+            "mypy>=2.1.0",
+            "ruff>=0.15.20",
+            "wemake-python-styleguide>=1.6,<2",
+        ]
+
+        [tool.mypy]
+        strict = true
+        extra_checks = true
+        strict_equality_for_none = true
+
+        [tool.pytest.ini_options]
+        addopts = "--cov-fail-under=100"
+
+        [tool.coverage.run]
+        omit = [
+            "src/fastapi_template/entrypoints/fastapi/app.py",
+            "src/fastapi_template/entrypoints/fastapi/bootstrap.py",
+        ]
+        """,
+    )
+
+
+def _ruff_toml() -> str:
+    return dedent(
+        """
+        src = ["src", "management", "tests"]
+
+        [lint]
+        ignore = ["D100", "D104", "D106"]
+
+        [lint.isort]
+        known-first-party = ["fastapi_template"]
+
+        [lint.per-file-ignores]
+        "tests/**" = ["D101", "D102", "D103", "D105", "D107"]
+        """,
+    )
+
+
+def _prek_toml() -> str:
+    return dedent(
+        """
+        [[repos]]
+        repo = "local"
+
+        [[repos.hooks]]
+        id = "flake8"
+        name = "wemake-python-styleguide"
+        language = "system"
+        entry = "uv run flake8 src management"
+        files = "^(src|management)/.*\\\\.py$|^setup\\\\.cfg$|^pyproject\\\\.toml$|^uv\\\\.lock$"
+        pass_filenames = false
+        """,
+    )

@@ -29,6 +29,8 @@ from fastapi_template.foundation.delivery.controllers import BaseAsyncController
 
 @dataclass(kw_only=True)
 class AuthenticationTokenController(BaseAsyncController):
+    """Define AuthenticationTokenController."""
+
     _jwt_auth_factory: Injected[JWTAuthFactory]
     _request_info_service: Injected[RequestInfoService]
     _ip_throttler_factory: Injected[IPThrottlerFactory]
@@ -38,10 +40,12 @@ class AuthenticationTokenController(BaseAsyncController):
     _revoke_token_use_case: Injected[RevokeTokenUseCase]
 
     def __post_init__(self) -> None:
+        """Run post init."""
         self._jwt_auth = self._jwt_auth_factory()
         super().__post_init__()
 
     def register(self, registry: APIRouter) -> None:
+        """Run register."""
         registry.add_api_route(
             path="/api/v1/auth/token",
             endpoint=self.issue_token,
@@ -78,6 +82,11 @@ class AuthenticationTokenController(BaseAsyncController):
         request: Request,
         body: IssueTokenRequestSchema,
     ) -> TokenResponseSchema:
+        """Run issue token.
+
+        Returns:
+        The operation result.
+        """
         token = await self._issue_token_use_case.execute(
             data=body,
             context=TokenRequestContextDTO(
@@ -94,6 +103,11 @@ class AuthenticationTokenController(BaseAsyncController):
         self,
         body: RefreshTokenRequestSchema,
     ) -> TokenResponseSchema:
+        """Run refresh token.
+
+        Returns:
+        The operation result.
+        """
         token = await self._refresh_token_use_case.execute(
             data=body,
         )
@@ -105,12 +119,18 @@ class AuthenticationTokenController(BaseAsyncController):
         request: AuthenticatedRequest,
         body: RefreshTokenRequestSchema,
     ) -> None:
+        """Run revoke token."""
         await self._revoke_token_use_case.execute(
             data=body,
             user=request.state.user,
         )
 
     async def handle_exception(self, exception: Exception) -> Any:
+        """Run handle exception.
+
+        Returns:
+        The operation result.
+        """
         if isinstance(exception, IssueTokenUseCase.INVALID_CREDENTIALS_ERROR):
             raise HTTPException(
                 status_code=HTTPStatus.UNAUTHORIZED,

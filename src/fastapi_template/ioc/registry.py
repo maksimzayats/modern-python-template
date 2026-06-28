@@ -5,4 +5,5 @@ from fastapi_template.infrastructure.database.unit_of_work import SQLAlchemyUnit
 
 
 def register_dependencies(container: Container) -> None:
+    """Run register dependencies."""
     container.add(SQLAlchemyUnitOfWork, provides=UnitOfWork)

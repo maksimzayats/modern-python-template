@@ -20,16 +20,25 @@ from fastapi_template.foundation.services import BaseService
 
 
 class RefreshSessionServiceSettings(BaseSettings):
+    """Define RefreshSessionServiceSettings."""
+
     refresh_token_nbytes: int = 32
     refresh_token_ttl_days: int = 30
 
     @property
     def refresh_token_ttl(self) -> timedelta:
+        """Run refresh token ttl.
+
+        Returns:
+        The operation result.
+        """
         return timedelta(days=self.refresh_token_ttl_days)
 
 
 @dataclass(kw_only=True)
 class RefreshSessionService(BaseService):
+    """Define RefreshSessionService."""
+
     INVALID_REFRESH_TOKEN_ERROR: ClassVar = InvalidRefreshTokenError
     EXPIRED_REFRESH_TOKEN_ERROR: ClassVar = ExpiredRefreshTokenError
 
@@ -43,6 +52,11 @@ class RefreshSessionService(BaseService):
         user_agent: str,
         ip_address_trace: str | None,
     ) -> RefreshSessionResult:
+        """Run create refresh session.
+
+        Returns:
+        The operation result.
+        """
         refresh_token = self._issue_refresh_token()
         session = await uow.refresh_session_repository.create(
             data=CreateRefreshSessionDTO(
@@ -61,6 +75,11 @@ class RefreshSessionService(BaseService):
         uow: UnitOfWork,
         refresh_token: str,
     ) -> RefreshSessionResult:
+        """Run rotate refresh token.
+
+        Returns:
+        The operation result.
+        """
         session = await self._get_active_refresh_session(
             repository=uow.refresh_session_repository,
             refresh_token=refresh_token,
@@ -84,6 +103,7 @@ class RefreshSessionService(BaseService):
         refresh_token: str,
         user: User,
     ) -> None:
+        """Run revoke refresh token."""
         session = await self._get_active_refresh_session(
             repository=uow.refresh_session_repository,
             refresh_token=refresh_token,
@@ -121,5 +141,7 @@ class RefreshSessionService(BaseService):
 
 
 class RefreshSessionResult(NamedTuple):
+    """Define RefreshSessionResult."""
+
     refresh_token: str
     session: RefreshSession

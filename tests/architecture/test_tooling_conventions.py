@@ -1,3 +1,4 @@
+import configparser
 import tomllib
 from collections.abc import Mapping
 from pathlib import Path
@@ -11,10 +12,18 @@ QUALITY_HOOK_NAMES = {
     "mypy",
     "ruff check",
     "ruff format check",
+    "wemake-python-styleguide",
 }
-WORKFLOWS_WITH_CONTENT_WRITE_PERMISSIONS = {
-    "dependabot-auto-merge.yaml",
+FOCUSED_REPOSITORY_HOOK_IDS = {
+    "actionlint",
+    "check-compose-spec",
+    "check-dependabot",
+    "check-github-actions",
+    "check-github-workflows",
+    "codespell",
+    "zizmor",
 }
+WORKFLOWS_WITH_CONTENT_WRITE_PERMISSIONS: set[str] = set()
 
 
 def test_prek_quality_hooks_run_against_the_whole_project() -> None:
@@ -37,6 +46,12 @@ def test_mypy_hook_uses_test_environment_file() -> None:
     assert "--env-file .env.test.example" in mypy_hook["entry"]
 
 
+def test_focused_repository_quality_hooks_are_enabled() -> None:
+    hooks = _prek_hooks_by_id()
+
+    assert FOCUSED_REPOSITORY_HOOK_IDS.issubset(hooks.keys())
+
+
 def test_ruff_config_keeps_broad_rule_selection_and_safe_preview() -> None:
     ruff_config = _read_toml(REPO_ROOT / "ruff.toml")
     lint_config = cast(dict[str, Any], ruff_config["lint"])
@@ -44,6 +59,20 @@ def test_ruff_config_keeps_broad_rule_selection_and_safe_preview() -> None:
     assert lint_config["select"] == ["ALL"]
     assert lint_config["preview"] is True
     assert lint_config["explicit-preview-rules"] is True
+
+
+def test_wemake_styleguide_config_is_strict_but_scoped() -> None:
+    config = configparser.ConfigParser()
+    config.read(REPO_ROOT / "setup.cfg", encoding="utf-8")
+    flake8_config = config["flake8"]
+
+    assert flake8_config["format"] == "wemake"
+    assert flake8_config["select"] == "WPS,E999"
+    assert flake8_config["max-complexity"] == "6"
+    assert flake8_config["max-imports"] == "17"
+    assert flake8_config["max-arguments"] == "6"
+    assert "tests" not in _normalized_words(flake8_config["per-file-ignores"])
+    assert not any(code == "WPS" for code in _wps_ignore_codes(flake8_config["per-file-ignores"]))
 
 
 def test_makefile_quality_targets_use_prek() -> None:
@@ -96,6 +125,17 @@ def _prek_hooks_by_name() -> dict[str, dict[str, Any]]:
     }
 
 
+def _prek_hooks_by_id() -> dict[str, dict[str, Any]]:
+    prek_config = _read_toml(REPO_ROOT / "prek.toml")
+    repos = cast(list[dict[str, Any]], prek_config["repos"])
+    return {
+        hook["id"]: hook
+        for repo in repos
+        for hook in cast(list[dict[str, Any]], repo.get("hooks", []))
+        if "id" in hook
+    }
+
+
 def _is_whole_project_hook(hook: dict[str, Any] | None) -> bool:
     return hook is not None and hook.get("pass_filenames") is False
 
@@ -123,6 +163,16 @@ def _make_target_recipe(*, makefile: str, target: str) -> list[str]:
 
 def _read_toml(path: Path) -> dict[str, Any]:
     return tomllib.loads(path.read_text(encoding="utf-8"))
+
+
+def _normalized_words(value: str) -> set[str]:
+    return {word.strip() for word in value.replace(",", " ").split() if word.strip()}
+
+
+def _wps_ignore_codes(value: str) -> set[str]:
+    return {
+        word.strip() for word in value.replace(",", " ").split() if word.strip().startswith("WPS")
+    }
 
 
 def _workflow_requests_content_write_permissions(*, path: Path) -> bool:

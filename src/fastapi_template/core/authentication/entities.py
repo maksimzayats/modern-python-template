@@ -7,6 +7,8 @@ from fastapi_template.core.user.entities import User
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class RefreshSession:
+    """Define RefreshSession."""
+
     id: uuid.UUID
     refresh_token_hash: str
     user: User
@@ -20,4 +22,9 @@ class RefreshSession:
 
     @property
     def is_active(self) -> bool:
+        """Run is active.
+
+        Returns:
+        The operation result.
+        """
         return self.revoked_at is None and self.expires_at > datetime.now(tz=UTC)

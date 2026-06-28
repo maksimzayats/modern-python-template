@@ -13,6 +13,7 @@ from fastapi_template.core.user.repositories import UserRepository
 from fastapi_template.core.user.services import (
     PasswordService,
     PasswordServiceSettings,
+    UserCredentialService,
     UserIdentityService,
 )
 from fastapi_template.core.user.use_cases import (
@@ -218,6 +219,30 @@ def _build_use_case(repository: FakeUserRepository | None = None) -> CreateUserU
         _identity_service=UserIdentityService(),
         _password_service=PasswordService(_settings=PasswordServiceSettings()),
         _uow=FakeUnitOfWork(_user_repository=repository or FakeUserRepository()),
+    )
+
+
+def test_identity_service_returns_stripped_email_without_domain_separator() -> None:
+    service = UserIdentityService()
+
+    assert service.normalize_email(email=" no-domain ") == "no-domain"
+
+
+@pytest.mark.anyio
+async def test_user_credential_service_returns_none_for_missing_user() -> None:
+    service = UserCredentialService(
+        _identity_service=UserIdentityService(),
+        _password_service=PasswordService(_settings=PasswordServiceSettings()),
+    )
+    uow = FakeUnitOfWork(_user_repository=FakeUserRepository())
+
+    assert (
+        await service.authenticate_user(
+            uow=uow,
+            username="missing",
+            password=_STRONG_PASSWORD,
+        )
+        is None
     )
 
 

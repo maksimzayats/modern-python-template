@@ -62,12 +62,16 @@ _DOCKER_COMPOSE_REPOSITORY = "docker/compose"
 
 @dataclass(frozen=True, kw_only=True)
 class DependencyUpdate:
+    """Define DependencyUpdate."""
+
     old_requirement: str
     new_requirement: str
 
 
 @dataclass(frozen=True, kw_only=True)
 class ActionUpdate:
+    """Define ActionUpdate."""
+
     file_path: Path
     repository: str
     old_ref: str
@@ -76,6 +80,8 @@ class ActionUpdate:
 
 @dataclass(frozen=True, kw_only=True)
 class ContainerImageUpdate:
+    """Define ContainerImageUpdate."""
+
     file_path: Path
     old_ref: str
     new_ref: str
@@ -83,6 +89,8 @@ class ContainerImageUpdate:
 
 @dataclass(frozen=True, kw_only=True)
 class UpdateSummary:
+    """Define UpdateSummary."""
+
     dependency_updates: tuple[DependencyUpdate, ...]
     action_updates: tuple[ActionUpdate, ...]
     container_updates: tuple[ContainerImageUpdate, ...]
@@ -90,6 +98,8 @@ class UpdateSummary:
 
 @dataclass(frozen=True, kw_only=True)
 class UpdateOptions:
+    """Define UpdateOptions."""
+
     dry_run: bool = False
     upgrade_lock: bool = True
     update_pyproject: bool = True
@@ -99,12 +109,16 @@ class UpdateOptions:
 
 @dataclass(frozen=True, kw_only=True)
 class ContainerImageReference:
+    """Define ContainerImageReference."""
+
     file_path: Path
     image_ref: str
 
 
 @dataclass(frozen=True, kw_only=True)
 class ContainerImage:
+    """Define ContainerImage."""
+
     repository: str
     tag: str | None
     digest: str | None
@@ -112,6 +126,8 @@ class ContainerImage:
 
 @dataclass(frozen=True, kw_only=True)
 class ContainerTagVersion:
+    """Define ContainerTagVersion."""
+
     prefix: str
     version: tuple[int, ...]
     suffix: str
@@ -119,15 +135,25 @@ class ContainerTagVersion:
 
 @dataclass(frozen=True, kw_only=True)
 class JsonResponse:
+    """Define JsonResponse."""
+
     payload: Any
     link: str | None
 
 
 class ProgressReporter:
+    """Define ProgressReporter."""
+
     def __init__(self, *, enabled: bool = True) -> None:
+        """Initialize the instance."""
         self._enabled = enabled
 
     def step(self, message: str, *, spinner: bool = True) -> _ProgressStep:
+        """Run step.
+
+        Returns:
+        The operation result.
+        """
         return _ProgressStep(
             message=message,
             enabled=self._enabled,
@@ -137,6 +163,7 @@ class ProgressReporter:
 
 class _ProgressStep:
     def __init__(self, *, message: str, enabled: bool, spinner: bool) -> None:
+        """Initialize the instance."""
         self._message = message
         self._enabled = enabled
         self._spinner = spinner
@@ -144,6 +171,11 @@ class _ProgressStep:
         self._thread: threading.Thread | None = None
 
     def __enter__(self) -> Self:
+        """Enter the context manager.
+
+        Returns:
+        The active context manager.
+        """
         if not self._enabled:
             return self
 
@@ -162,6 +194,7 @@ class _ProgressStep:
         _exc_value: BaseException | None,
         _traceback: TracebackType | None,
     ) -> None:
+        """Exit the context manager."""
         if not self._enabled:
             return
 
@@ -196,6 +229,11 @@ def update_dependencies(
     options: UpdateOptions | None = None,
     progress: ProgressReporter | None = None,
 ) -> UpdateSummary:
+    """Run update dependencies.
+
+    Returns:
+    The operation result.
+    """
     update_options = options or UpdateOptions()
     progress_reporter = progress or ProgressReporter(enabled=False)
 
@@ -244,6 +282,11 @@ def sync_pyproject_dependency_versions(
     dry_run: bool = False,
     latest_version_resolver: VersionResolver | None = None,
 ) -> tuple[DependencyUpdate, ...]:
+    """Run sync pyproject dependency versions.
+
+    Returns:
+    The operation result.
+    """
     pyproject_path = repo_root / "pyproject.toml"
     uv_lock_path = repo_root / "uv.lock"
 
@@ -296,6 +339,11 @@ def update_github_action_versions(
     dry_run: bool = False,
     latest_tag_resolver: VersionResolver | None = None,
 ) -> tuple[ActionUpdate, ...]:
+    """Run update github action versions.
+
+    Returns:
+    The operation result.
+    """
     workflows_path = repo_root / ".github" / "workflows"
     if not workflows_path.exists():
         return ()
@@ -331,6 +379,11 @@ def update_container_image_versions(
     dry_run: bool = False,
     latest_tag_resolver: ContainerTagResolver | None = None,
 ) -> tuple[ContainerImageUpdate, ...]:
+    """Run update container image versions.
+
+    Returns:
+    The operation result.
+    """
     references = _container_image_references(repo_root=repo_root)
     resolver = latest_tag_resolver or _latest_container_image_tag
     replacements = _container_image_replacements(
@@ -348,6 +401,11 @@ def update_container_image_versions(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Run main.
+
+    Returns:
+    The operation result.
+    """
     parser = argparse.ArgumentParser(
         description=(
             "Update uv lock, pyproject dependency lower bounds, "
@@ -584,6 +642,11 @@ def _updated_workflow_action_text(
     workflow_updates: list[ActionUpdate] = []
 
     def replace_action(match: re.Match[str]) -> str:
+        """Run replace action.
+
+        Returns:
+        The operation result.
+        """
         repository = match.group("repository")
         old_ref = match.group("ref")
         latest_tag = latest_tags.get(repository)
