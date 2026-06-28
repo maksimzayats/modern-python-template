@@ -50,7 +50,6 @@ def test_non_delivery_code_does_not_import_delivery_schemas() -> None:
         for module in iter_source_modules()
         if "delivery" not in module.source_parts
         for import_reference in iter_imports(module)
-        if not import_reference.is_type_checking
         if _is_delivery_schema_module(import_reference.module_name)
     ]
 

@@ -118,6 +118,12 @@ def _iter_imports(
             line_number=node.lineno,
             is_type_checking=is_type_checking,
         )
+        for alias in node.names:
+            yield ImportReference(
+                module_name=_imported_alias_name(module_name=node.module, alias_name=alias.name),
+                line_number=node.lineno,
+                is_type_checking=is_type_checking,
+            )
         return
 
     if isinstance(node, ast.Import):
@@ -145,3 +151,7 @@ def _is_type_checking_test(expression: ast.expr) -> bool:
     return (isinstance(expression, ast.Name) and expression.id == "TYPE_CHECKING") or (
         isinstance(expression, ast.Attribute) and expression.attr == "TYPE_CHECKING"
     )
+
+
+def _imported_alias_name(*, module_name: str, alias_name: str) -> str:
+    return f"{module_name}.{alias_name}"

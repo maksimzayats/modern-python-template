@@ -68,7 +68,6 @@ def test_sqlalchemy_imports_stay_in_application_database_boundaries() -> None:
         for module in iter_source_modules()
         if not _can_import_sqlalchemy(module)
         for import_reference in iter_imports(module)
-        if not import_reference.is_type_checking
         if import_reference.module_name.startswith("sqlalchemy")
     ]
 
@@ -150,7 +149,6 @@ def test_core_domain_internals_do_not_import_delivery_or_infrastructure() -> Non
         for module in iter_source_modules()
         if _is_core_internal_module(module)
         for import_reference in iter_imports(module)
-        if not import_reference.is_type_checking
         if _is_forbidden_core_internal_import(import_reference.module_name)
     ]
 
@@ -166,7 +164,6 @@ def test_local_infrastructure_modules_do_not_import_delivery() -> None:
         for module in iter_source_modules()
         if _is_core_local_infrastructure_module(module)
         for import_reference in iter_imports(module)
-        if not import_reference.is_type_checking
         if _is_core_delivery_import(import_reference.module_name)
     ]
 
@@ -179,7 +176,6 @@ def test_delivery_modules_do_not_import_local_infrastructure() -> None:
         for module in iter_source_modules()
         if _is_core_delivery_module(module)
         for import_reference in iter_imports(module)
-        if not import_reference.is_type_checking
         if _is_core_local_infrastructure_import(import_reference.module_name)
     ]
 
@@ -192,7 +188,6 @@ def test_controllers_do_not_import_persistence_or_uow_implementations() -> None:
         for module in iter_source_modules()
         if _is_controller_module(module)
         for import_reference in iter_imports(module)
-        if not import_reference.is_type_checking
         if _is_forbidden_controller_import(import_reference.module_name)
     ]
 
@@ -222,7 +217,6 @@ def test_framework_imports_stay_in_delivery_entrypoints_or_infrastructure() -> N
         for module in iter_source_modules()
         if not _is_framework_boundary_module(module)
         for import_reference in iter_imports(module)
-        if not import_reference.is_type_checking
         if _is_framework_import(import_reference.module_name)
     ]
 
@@ -260,7 +254,6 @@ def test_container_access_stays_in_composition_roots() -> None:
         for module in iter_source_modules()
         if not _can_access_container(module)
         for import_reference in iter_imports(module)
-        if not import_reference.is_type_checking
         if import_reference.module_name.startswith("fastapi_template.ioc")
     )
 
