@@ -48,7 +48,8 @@
 - `infrastructure/database/unit_of_work.py` may import local SQLAlchemy repository
   implementations to assemble one transaction boundary.
 - `ioc/registry.py` may register concrete adapters.
-- `infrastructure/database` is only for engine/session creation and unit-of-work transaction wiring.
+- `infrastructure/database` is shared SQLAlchemy base, metadata,
+  engine/session creation, and unit-of-work transaction wiring.
 - Infrastructure adapters must not define application rules such as
   normalization, duplicate decisions, token rotation decisions, or permission
   checks.
