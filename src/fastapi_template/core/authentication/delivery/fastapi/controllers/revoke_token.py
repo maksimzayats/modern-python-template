@@ -50,8 +50,8 @@ class RevokeTokenController(BaseAsyncController):
             endpoint=self.revoke_token,
             methods=["POST"],
             dependencies=[
-                Depends(self._jwt_auth),
                 Depends(self._ip_throttler_factory(quota=rate_limiter.per_min(10))),
+                Depends(self._jwt_auth),
                 Depends(self._user_throttler_factory(quota=rate_limiter.per_min(10))),
             ],
         )

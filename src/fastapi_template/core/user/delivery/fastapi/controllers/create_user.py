@@ -23,7 +23,7 @@ class CreateUserController(BaseAsyncController):
     def register(self, registry: APIRouter) -> None:
         """Run register."""
         registry.add_api_route(
-            path="/api/v1/users/",
+            path="/api/v1/users",
             endpoint=self.create_user,
             methods=["POST"],
             response_model=UserSchema,

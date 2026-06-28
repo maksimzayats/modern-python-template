@@ -15,7 +15,7 @@ _TEST_PASSWORD = "test-password"  # noqa: S105
 def test_create_user(test_client_factory: TestClientFactory) -> None:
     with test_client_factory() as test_client:
         response = test_client.post(
-            "/api/v1/users/",
+            "/api/v1/users",
             json={
                 "username": "test_new_user",
                 "email": "new_user@test.com",
@@ -62,7 +62,7 @@ def test_create_user_rejects_overlong_fields(
 
     with test_client_factory() as test_client:
         response = test_client.post(
-            "/api/v1/users/",
+            "/api/v1/users",
             json=payload,
         )
 

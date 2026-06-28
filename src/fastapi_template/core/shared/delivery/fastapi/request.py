@@ -20,6 +20,9 @@ class RequestInfoServiceSettings(BaseSettings):
     ip_header: str = "x-forwarded-for"
     """Header containing the forwarded IP address trace when behind proxies."""
 
+    trust_forwarded_ip_header: bool = False
+    """Whether to trust the forwarded IP header for client identity."""
+
     user_agent_header: str = "user-agent"
     """Header to look for the user agent string."""
 
@@ -46,6 +49,9 @@ class RequestInfoService(BaseService):
         Returns:
         The operation result.
         """
+        if not self._settings.trust_forwarded_ip_header:
+            return self._get_remote_address(request=request)
+
         header_value = request.headers.get(self._settings.ip_header)
         if header_value is None:
             return self._get_remote_address(request=request)

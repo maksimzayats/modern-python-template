@@ -63,8 +63,20 @@ def build_request(
     return Request(scope)
 
 
-def test_request_info_uses_configured_ip_header_when_present() -> None:
+def test_request_info_uses_remote_ip_when_forwarded_header_is_untrusted() -> None:
     service = RequestInfoService(_settings=RequestInfoServiceSettings())
+    request = build_request(
+        headers={"x-forwarded-for": "203.0.113.10, 198.51.100.5"},
+        client=("192.0.2.10", 12345),
+    )
+
+    assert service.get_user_ip_trace(request=request) == "192.0.2.10"
+
+
+def test_request_info_uses_configured_ip_header_when_trusted() -> None:
+    service = RequestInfoService(
+        _settings=RequestInfoServiceSettings(trust_forwarded_ip_header=True),
+    )
     request = build_request(
         headers={"x-forwarded-for": "203.0.113.10, 198.51.100.5"},
         client=("192.0.2.10", 12345),
@@ -82,8 +94,19 @@ def test_request_info_uses_remote_ip_when_configured_ip_header_is_missing() -> N
     assert service.get_user_ip_trace(request=request) == "192.0.2.10"
 
 
+def test_request_info_uses_remote_ip_when_trusted_header_is_missing() -> None:
+    service = RequestInfoService(
+        _settings=RequestInfoServiceSettings(trust_forwarded_ip_header=True),
+    )
+    request = build_request(client=("192.0.2.10", 12345))
+
+    assert service.get_user_ip_trace(request=request) == "192.0.2.10"
+
+
 def test_request_info_falls_back_to_remote_ip_when_forwarded_trace_is_invalid() -> None:
-    service = RequestInfoService(_settings=RequestInfoServiceSettings())
+    service = RequestInfoService(
+        _settings=RequestInfoServiceSettings(trust_forwarded_ip_header=True),
+    )
     request = build_request(
         headers={"x-forwarded-for": "not-an-ip, 198.51.100.5"},
         client=("192.0.2.10", 12345),
@@ -93,7 +116,9 @@ def test_request_info_falls_back_to_remote_ip_when_forwarded_trace_is_invalid() 
 
 
 def test_request_info_falls_back_to_remote_ip_when_forwarded_trace_is_empty() -> None:
-    service = RequestInfoService(_settings=RequestInfoServiceSettings())
+    service = RequestInfoService(
+        _settings=RequestInfoServiceSettings(trust_forwarded_ip_header=True),
+    )
     request = build_request(
         headers={"x-forwarded-for": "203.0.113.10, "},
         client=("192.0.2.10", 12345),
@@ -118,7 +143,9 @@ def test_request_info_returns_none_when_request_has_no_client() -> None:
 
 @pytest.mark.anyio
 async def test_ip_throttler_uses_full_request_ip_identity() -> None:
-    service = RequestInfoService(_settings=RequestInfoServiceSettings())
+    service = RequestInfoService(
+        _settings=RequestInfoServiceSettings(trust_forwarded_ip_header=True),
+    )
     request = build_request(
         headers={"x-forwarded-for": "203.0.113.10, 198.51.100.5"},
         client=("192.0.2.10", 12345),
