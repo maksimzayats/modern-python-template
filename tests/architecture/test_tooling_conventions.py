@@ -45,10 +45,10 @@ STALE_DOCUMENTATION_MARKERS = {
     "setup " + "wizard",
     "setup_" + "wizard",
 }
-ALLOWED_WPS_WILDCARD_IGNORE_PATHS = {
-    "src/fastapi_template/core/**/repositories/*.py",
-    "src/fastapi_template/core/**/services/*.py",
-    "src/fastapi_template/core/**/use_cases/*.py",
+ALLOWED_WPS_WILDCARD_IGNORES = {
+    "src/fastapi_template/core/**/repositories/*.py": {"WPS115"},
+    "src/fastapi_template/core/**/services/*.py": {"WPS115"},
+    "src/fastapi_template/core/**/use_cases/*.py": {"WPS115"},
 }
 
 
@@ -104,11 +104,21 @@ def test_wemake_styleguide_config_is_strict_but_scoped() -> None:
     assert "tests" not in _normalized_words(flake8_config["per-file-ignores"])
     assert not any(code == "WPS" for code in _wps_ignore_codes(flake8_config["per-file-ignores"]))
     assert (
-        _wildcard_wps_ignore_paths(
+        _wildcard_wps_ignores(
             value=flake8_config["per-file-ignores"],
         )
-        == ALLOWED_WPS_WILDCARD_IGNORE_PATHS
+        == ALLOWED_WPS_WILDCARD_IGNORES
     )
+
+
+def test_wemake_wildcard_ignore_check_rejects_extra_codes() -> None:
+    value = """
+src/fastapi_template/core/**/repositories/*.py:
+  WPS115,
+  WPS210
+""".strip()
+
+    assert _wildcard_wps_ignores(value=value) != ALLOWED_WPS_WILDCARD_IGNORES
 
 
 def test_makefile_quality_targets_use_prek() -> None:
@@ -248,8 +258,8 @@ def _wps_ignore_codes(value: str) -> set[str]:
     }
 
 
-def _wildcard_wps_ignore_paths(*, value: str) -> set[str]:
-    wildcard_paths: set[str] = set()
+def _wildcard_wps_ignores(*, value: str) -> dict[str, set[str]]:
+    wildcard_ignores: dict[str, set[str]] = {}
     active_path = ""
     for line in value.splitlines():
         stripped_line = line.strip()
@@ -258,10 +268,16 @@ def _wildcard_wps_ignore_paths(*, value: str) -> set[str]:
         if stripped_line.endswith(":"):
             active_path = stripped_line.removesuffix(":")
             continue
-        if "WPS" in stripped_line and "*" in active_path:
-            wildcard_paths.add(active_path)
+        if "*" in active_path:
+            codes = {
+                word.strip().removesuffix(",")
+                for word in stripped_line.replace(",", " ").split()
+                if word.strip().startswith("WPS")
+            }
+            if codes:
+                wildcard_ignores.setdefault(active_path, set()).update(codes)
 
-    return wildcard_paths
+    return wildcard_ignores
 
 
 def _workflow_requests_content_write_permissions(*, path: Path) -> bool:
