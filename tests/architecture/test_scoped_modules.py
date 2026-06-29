@@ -107,6 +107,40 @@ __all__ = ("User",)
     ]
 
 
+def test_import_only_public_alias_shim_guardrail_rejects_public_import_alias() -> None:
+    module = SourceModule(
+        path=SOURCE_ROOT / "core" / "user" / "alias.py",
+        tree=ast.parse(
+            """
+import fastapi_template.core.user.entities.user as PublicUser
+
+__all__ = ("PublicUser",)
+""".lstrip(),
+        ),
+    )
+
+    assert _import_only_public_alias_shim_violations(modules=[module]) == [
+        str(module.relative_path),
+    ]
+
+
+def test_import_only_public_alias_shim_guardrail_rejects_public_from_import_alias() -> None:
+    module = SourceModule(
+        path=SOURCE_ROOT / "core" / "user" / "alias.py",
+        tree=ast.parse(
+            """
+from fastapi_template.core.user.entities.user import _PrivateUser as PublicUser
+
+__all__ = ("PublicUser",)
+""".lstrip(),
+        ),
+    )
+
+    assert _import_only_public_alias_shim_violations(modules=[module]) == [
+        str(module.relative_path),
+    ]
+
+
 def _import_only_public_alias_shim_violations(
     *,
     modules: Iterable[SourceModule],
@@ -146,9 +180,9 @@ def _is_auxiliary_class(*, class_name: str) -> bool:
 
 def _has_public_import_from_alias(*, module: SourceModule) -> bool:
     return any(
-        not alias.name.startswith("_")
+        not _import_alias_binding_name(alias=alias).startswith("_")
         for node in module.tree.body
-        if isinstance(node, ast.ImportFrom)
+        if isinstance(node, ast.Import | ast.ImportFrom)
         for alias in node.names
     )
 
@@ -169,6 +203,13 @@ def _is_all_assignment(*, node: ast.stmt) -> bool:
 
 def _is_all_target(*, target: ast.expr) -> bool:
     return isinstance(target, ast.Name) and target.id == "__all__"
+
+
+def _import_alias_binding_name(*, alias: ast.alias) -> str:
+    if alias.asname is not None:
+        return alias.asname
+
+    return alias.name.split(".", maxsplit=1)[0]
 
 
 def _non_docstring_nodes(*, module: SourceModule) -> list[ast.stmt]:
