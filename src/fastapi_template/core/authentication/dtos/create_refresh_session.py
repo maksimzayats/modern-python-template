@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from fastapi_template.core.user.entities.user import User
@@ -7,6 +8,7 @@ from fastapi_template.foundation.dto import BaseDTO
 class CreateRefreshSessionDTO(BaseDTO):
     """Define CreateRefreshSessionDTO."""
 
+    id: uuid.UUID
     user: User
     refresh_token_hash: str
     user_agent: str

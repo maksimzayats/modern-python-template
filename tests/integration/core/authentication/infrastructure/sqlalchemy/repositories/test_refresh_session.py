@@ -171,6 +171,7 @@ def _create_refresh_session_data(
 ) -> CreateRefreshSessionDTO:
     created_at = datetime.now(tz=UTC)
     return CreateRefreshSessionDTO(
+        id=uuid.uuid7(),
         user=user,
         refresh_token_hash=refresh_token_hash,
         user_agent=user_agent,

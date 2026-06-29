@@ -39,6 +39,7 @@ class SQLAlchemyRefreshSessionRepository(RefreshSessionRepository):
             The created refresh session.
         """
         model = RefreshSessionModel(
+            id=data.id,
             refresh_token_hash=data.refresh_token_hash,
             user_id=data.user.id,
             user_agent=data.user_agent,

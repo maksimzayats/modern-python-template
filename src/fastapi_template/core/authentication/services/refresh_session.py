@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import ClassVar, NamedTuple
@@ -70,6 +71,7 @@ class RefreshSessionService(BaseService):
         created_at = datetime.now(tz=UTC)
         session = await uow.refresh_session_repository.create(
             data=CreateRefreshSessionDTO(
+                id=uuid.uuid7(),
                 user=user,
                 refresh_token_hash=self._hash_refresh_token(refresh_token=refresh_token),
                 user_agent=user_agent,

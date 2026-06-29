@@ -44,6 +44,7 @@ class FakeRefreshSessionRepository(RefreshSessionRepository):
 
     async def create(self, *, data: CreateRefreshSessionDTO) -> RefreshSession:
         self.session = _build_session(
+            session_id=data.id,
             user=data.user,
             refresh_token_hash=data.refresh_token_hash,
             created_at=data.created_at,
@@ -199,6 +200,7 @@ async def test_create_refresh_session_uses_active_unit_of_work() -> None:
     assert result.session.user == user
     assert result.refresh_token
     assert repository.session is not None
+    assert repository.session.id.version == 7
     assert repository.session.created_at < repository.session.expires_at
     assert repository.session.last_used_at is None
     assert repository.session.ip_address_trace == ""
