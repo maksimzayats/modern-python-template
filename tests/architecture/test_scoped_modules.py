@@ -141,6 +141,24 @@ __all__ = ("PublicUser",)
     ]
 
 
+def test_import_only_public_alias_shim_guardrail_rejects_assignment_alias() -> None:
+    module = SourceModule(
+        path=SOURCE_ROOT / "core" / "user" / "alias.py",
+        tree=ast.parse(
+            """
+from fastapi_template.core.user.entities.user import User as _User
+
+User = _User
+__all__ = ("User",)
+""".lstrip(),
+        ),
+    )
+
+    assert _import_only_public_alias_shim_violations(modules=[module]) == [
+        str(module.relative_path),
+    ]
+
+
 def _import_only_public_alias_shim_violations(
     *,
     modules: Iterable[SourceModule],
@@ -149,7 +167,7 @@ def _import_only_public_alias_shim_violations(
         str(module.relative_path)
         for module in modules
         if module.path.name != "__init__.py"
-        if _has_public_import_from_alias(module=module)
+        if _has_public_alias_binding(module=module)
         if not _public_classes(module=module)
         if not _public_functions(module=module)
         if _is_import_only_module(module=module)
@@ -178,20 +196,40 @@ def _is_auxiliary_class(*, class_name: str) -> bool:
     return any(class_name.endswith(suffix) for suffix in AUXILIARY_CLASS_SUFFIXES)
 
 
-def _has_public_import_from_alias(*, module: SourceModule) -> bool:
-    return any(
+def _has_public_alias_binding(*, module: SourceModule) -> bool:
+    import_bindings = _import_binding_names(module=module)
+    has_public_import = any(
         not _import_alias_binding_name(alias=alias).startswith("_")
         for node in module.tree.body
         if isinstance(node, ast.Import | ast.ImportFrom)
         for alias in node.names
     )
+    if has_public_import:
+        return True
+
+    return any(
+        _is_import_alias_assignment(node=node, import_bindings=import_bindings)
+        for node in module.tree.body
+    )
 
 
 def _is_import_only_module(*, module: SourceModule) -> bool:
+    import_bindings = _import_binding_names(module=module)
     return all(
-        isinstance(node, ast.Import | ast.ImportFrom) or _is_all_assignment(node=node)
+        isinstance(node, ast.Import | ast.ImportFrom)
+        or _is_all_assignment(node=node)
+        or _is_import_alias_assignment(node=node, import_bindings=import_bindings)
         for node in _non_docstring_nodes(module=module)
     )
+
+
+def _import_binding_names(*, module: SourceModule) -> set[str]:
+    return {
+        _import_alias_binding_name(alias=alias)
+        for node in module.tree.body
+        if isinstance(node, ast.Import | ast.ImportFrom)
+        for alias in node.names
+    }
 
 
 def _is_all_assignment(*, node: ast.stmt) -> bool:
@@ -203,6 +241,26 @@ def _is_all_assignment(*, node: ast.stmt) -> bool:
 
 def _is_all_target(*, target: ast.expr) -> bool:
     return isinstance(target, ast.Name) and target.id == "__all__"
+
+
+def _is_import_alias_assignment(*, node: ast.stmt, import_bindings: set[str]) -> bool:
+    if not isinstance(node, ast.Assign | ast.AnnAssign):
+        return False
+
+    if not any(not name.startswith("_") for name in _assignment_target_names(node=node)):
+        return False
+
+    return isinstance(node.value, ast.Name) and node.value.id in import_bindings
+
+
+def _assignment_target_names(*, node: ast.Assign | ast.AnnAssign) -> list[str]:
+    if isinstance(node, ast.Assign):
+        return [target.id for target in node.targets if isinstance(target, ast.Name)]
+
+    if isinstance(node.target, ast.Name):
+        return [node.target.id]
+
+    return []
 
 
 def _import_alias_binding_name(*, alias: ast.alias) -> str:
