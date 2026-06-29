@@ -5,9 +5,11 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
 import yaml
 
 from tests.architecture._source import REPO_ROOT
+from tests.integration.conftest import validate_integration_database_url
 
 SOURCE_ROOT = REPO_ROOT / "src" / "fastapi_template"
 QUALITY_HOOK_NAMES = {
@@ -44,9 +46,11 @@ STALE_DOCUMENTATION_MARKERS = {
     "compat " + "shim",
     "compatibility " + "shim",
     "djan" + "go",
+    "fl" + "ask",
     "min" + "io",
     "old " + "stack",
     "old-" + "stack",
+    "scr" + "apy",
     "setup " + "wizard",
     "setup_" + "wizard",
 }
@@ -143,6 +147,31 @@ def test_makefile_quality_targets_use_prek() -> None:
 
     assert any(command.startswith("uv run prek run") for command in format_recipe)
     assert "uv run prek run --all-files" in lint_recipe
+
+
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "postgres://postgres:password@localhost:5432/test_fastapi_template",
+        "postgresql://postgres:password@localhost:5432/fastapi_template_test",
+    ],
+)
+def test_integration_database_url_guard_accepts_test_database_names(
+    database_url: str,
+) -> None:
+    validate_integration_database_url(database_url=database_url)
+
+
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "sqlite:///tmp/test.sqlite3",
+        "postgres://postgres:password@localhost:5432/fastapi_template",
+    ],
+)
+def test_integration_database_url_guard_rejects_unsafe_targets(database_url: str) -> None:
+    with pytest.raises(pytest.fail.Exception):
+        validate_integration_database_url(database_url=database_url)
 
 
 def test_removed_project_customizer_tooling_surface_stays_removed() -> None:
@@ -258,6 +287,7 @@ def _read_toml(path: Path) -> dict[str, Any]:
 def _documentation_scan_paths() -> tuple[Path, ...]:
     return (
         REPO_ROOT / "AGENTS.md",
+        REPO_ROOT / ".gitignore",
         REPO_ROOT / "README.md",
         *sorted((REPO_ROOT / "docs").rglob("*.md")),
     )

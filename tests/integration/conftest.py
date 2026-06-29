@@ -2,6 +2,7 @@ import os
 from collections.abc import Iterator
 from functools import partial
 from pathlib import Path
+from urllib.parse import urlparse
 
 import anyio
 import pytest
@@ -24,6 +25,7 @@ def container(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[Container]:
     if integration_database_url := os.environ.get("INTEGRATION_DATABASE_URL"):
+        validate_integration_database_url(database_url=integration_database_url)
         monkeypatch.setenv("DATABASE_URL", integration_database_url)
         _reset_database()
     else:
@@ -63,6 +65,20 @@ def _run_migrations() -> None:
 def _reset_database() -> None:
     alembic_config = Config("alembic.ini")
     command.downgrade(alembic_config, "base")
+
+
+def validate_integration_database_url(*, database_url: str) -> None:
+    """Reject integration database URLs that are unsafe to reset."""
+    if not database_url.startswith(("postgres://", "postgresql://")):
+        pytest.fail("INTEGRATION_DATABASE_URL must be a PostgreSQL URL")
+
+    database_name = urlparse(database_url).path.strip("/")
+    if database_name.startswith("test_") or database_name.endswith("_test"):
+        return
+
+    pytest.fail(
+        "INTEGRATION_DATABASE_URL database name must start with test_ or end with _test",
+    )
 
 
 async def _dispose_database_engine(*, session_factory: SQLAlchemySessionFactory) -> None:

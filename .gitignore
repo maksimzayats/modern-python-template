@@ -63,13 +63,6 @@ db.sqlite3-journal
 test_db.sqlite3
 test_db.sqlite3-journal
 
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
 # Sphinx documentation
 docs/_build/
 
